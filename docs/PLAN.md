@@ -74,7 +74,9 @@ commit only after checks, without a remote or a Nausicaa source change.
   heading trees, immutable raw/parser artifacts and provenance sidecars.
 - Completed: SQLite v1 source catalog, duplicate parse reuse, source listing,
   UTF-8 source pagination and catalog rebuild. See [SOURCES](SOURCES.md).
-- Remaining: HTML/PDF ingestion, page reconciliation/relationships, Tantivy/Jieba
+- Completed: local HTML article extraction/heading trees and PDF physical-page
+  text extraction, normalized artifact provenance and parser diagnostics.
+- Remaining: URL fetching, page reconciliation/relationships, Tantivy/Jieba
   indexing, query tools and the complete M1 exit matrix.
 
 1. Add versioned SourceId/SourceRevision, SourceLocator and DocumentNode domain

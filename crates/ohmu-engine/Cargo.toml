@@ -15,6 +15,10 @@ toml.workspace = true
 serde_json.workspace = true
 pulldown-cmark.workspace = true
 rusqlite.workspace = true
+dom_smoothie.workspace = true
+dom_query.workspace = true
+pdf-extract.workspace = true
+lopdf.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 rustix.workspace = true

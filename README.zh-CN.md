@@ -8,13 +8,13 @@ Ohmu 与 [Nausicaa](https://github.com/Ceskoslov/Nausicaa) 分仓协作：Ohmu �
 
 ## 当前状态
 
-当前已完成 **S0 骨架和 M1 第一部分：Markdown 来源导入与目录**。完整产品仍在分步实现。
+当前已完成 **S0 骨架和 M1 的本地 Markdown、HTML、文本 PDF 来源导入与目录**。完整产品仍在分步实现。
 
 | 已实现 | 已规划，尚未实现 |
 | --- | --- |
-| 新建知识目录、配置与目录诊断 | 静态网页、文本 PDF 导入 |
+| 新建知识目录、配置与目录诊断 | URL 抓取 |
 | 有大小限制的 Markdown 页面读取与 SHA-256 版本 | 中文分词、BM25 全文搜索、目录树与链接导航 |
-| Markdown 来源导入、不可变版本、目录重建、UTF-8 分页 | 全文索引与页面关系维护 |
+| Markdown/HTML/PDF 导入、不可变版本、目录重建、UTF-8 分页 | 全文索引与页面关系维护 |
 | Nausicaa `ohmu_read` 工具 | LLM 综合草稿、多页审阅发布、故障恢复 |
 | 无模型凭据的集成示例与持久回执验证 | 带原文引用的问答、规模评估 |
 
@@ -38,7 +38,7 @@ cargo run -p ohmu-nausicaa --example read_wiki -- /tmp/ohmu-demo /tmp/ohmu-demo-
 
 事件文件必须尚不存在。示例使用 scripted model，验证工具结果先持久化再交给模型；它不证明真实模型的问答质量。
 
-导入本地 Markdown 作为原始资料，不会自动创建或发布 Wiki 页面：
+导入本地 Markdown、HTML 或文本 PDF 作为原始资料，不会自动创建或发布 Wiki 页面：
 
 ```sh
 cargo run -p ohmu-cli -- ingest ./README.md --wiki /tmp/ohmu-demo --json
@@ -46,7 +46,7 @@ cargo run -p ohmu-cli -- sources --wiki /tmp/ohmu-demo --json
 cargo run -p ohmu-cli -- catalog-rebuild --wiki /tmp/ohmu-demo
 ```
 
-`ingest` 返回来源 ID、原始版本和解析产物哈希。`source <来源ID> --revision <哈希> --wiki <目录>` 可读取固定版本，支持 `--offset` 和 `--limit` 字节分页；`catalog-rebuild` 可从来源清单重建 SQLite 目录。网页、PDF 与全文搜索尚未实现。
+`ingest` 返回来源 ID、原始版本和解析产物哈希。`source <来源ID> --revision <哈希> --wiki <目录>` 可读取固定版本，支持 `--offset` 和 `--limit` 字节分页；`catalog-rebuild` 可从来源清单重建 SQLite 目录。PDF 读取保留物理页码且不跨页；HTML 引用定位到提取后的 Markdown。扫描件需要 OCR。URL 抓取与全文搜索尚未实现。
 
 ## 设计与集成
 

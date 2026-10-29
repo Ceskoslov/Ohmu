@@ -1,4 +1,4 @@
-//! Immutable local Markdown sources with provenance sidecars and a rebuildable catalog.
+//! Immutable local document sources with provenance sidecars and a rebuildable catalog.
 
 use std::fs::File;
 use std::io::Write;
@@ -7,23 +7,21 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ohmu_core::{
-    API_VERSION, ContentHash, DocumentNode, MAX_PAGE_BYTES, MAX_SOURCE_BYTES, MAX_TEXT_BYTES,
-    ParsedDocument, SOURCE_FORMAT_VERSION, SourceId, SourceLocator, SourcePassage, SourceRecord,
+    API_VERSION, ContentHash, MAX_PAGE_BYTES, MAX_SOURCE_BYTES, MAX_TEXT_BYTES, ParsedDocument,
+    SOURCE_FORMAT_VERSION, SourceId, SourceLocator, SourcePassage, SourceRecord,
 };
-use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use rusqlite::{Connection, OpenFlags, params};
 use rustix::fs::{
     AtFlags, Dir, FlockOperation, Mode, OFlags, flock, linkat, mkdirat, openat, unlinkat,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{EngineError, Wiki, content_hash, open_child_directory, open_directory, read_file};
 
-const PARSER: &str = "ohmu-markdown/1;pulldown-cmark/0.13.5";
+use crate::parsers::{MAX_NODES, ParserKind};
 const MAX_MANIFEST_BYTES: usize = 64 * 1024;
 // Text plus JSON escaping and a bounded number of structural nodes.
 const MAX_ARTIFACT_BYTES: usize = 8 * MAX_TEXT_BYTES;
-const MAX_NODES: usize = 20_000;
 const CATALOG_VERSION: u32 = 1;
 static TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
@@ -32,8 +30,19 @@ pub struct IngestReport {
     pub api_version: u32,
     pub record: SourceRecord,
     pub node_count: usize,
+    /// Parser limitations, empty-page notices and normalization information.
+    pub diagnostics: Vec<String>,
     /// True if this origin/revision/parser already had a committed manifest.
     pub reused: bool,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct ParseCache {
+    schema_version: u32,
+    revision: ContentHash,
+    parser: String,
+    artifact: ContentHash,
 }
 
 struct SourceStore {
@@ -57,6 +66,15 @@ impl Wiki {
                 "only .md and .markdown local sources are currently supported",
             ));
         }
+        self.ingest_file(path)
+    }
+
+    /// Import local Markdown, UTF-8 HTML or a text PDF without publishing a Wiki page.
+    /// File selection is validated by the parser, not trusted as media proof.
+    pub fn ingest_file(&self, path: impl AsRef<Path>) -> Result<IngestReport, EngineError> {
+        let path = path.as_ref();
+        let kind = ParserKind::for_path(path)?;
+        let parser = kind.identity();
         let parent = open_directory(
             path.parent()
                 .filter(|p| !p.as_os_str().is_empty())
@@ -78,7 +96,7 @@ impl Wiki {
         let source_id = SourceId::new(format!("src-{}", digest(origin.as_bytes())?.hex()))
             .map_err(source_error)?;
         let store = self.source_store()?;
-        let manifest_name = manifest_name(&source_id, &revision, PARSER)?;
+        let manifest_name = manifest_name(&source_id, &revision, parser)?;
 
         if let Some(existing) = optional_read(&store.records, &manifest_name, MAX_MANIFEST_BYTES)? {
             let record: SourceRecord = serde_json::from_slice(&existing)?;
@@ -86,7 +104,7 @@ impl Wiki {
             if record.origin != origin
                 || record.source_id != source_id
                 || record.revision != revision
-                || record.parser != PARSER
+                || record.parser != parser
             {
                 return Err(source_error("source manifest identity mismatch"));
             }
@@ -97,6 +115,7 @@ impl Wiki {
                 api_version: API_VERSION,
                 record,
                 node_count: document.nodes.len(),
+                diagnostics: document.diagnostics,
                 reused: true,
             });
         }
@@ -104,20 +123,37 @@ impl Wiki {
         let cache_name = format!(
             "{}-{}.json",
             revision.hex(),
-            digest(PARSER.as_bytes())?.hex()
+            digest(parser.as_bytes())?.hex()
         );
-        let document =
-            if let Some(cached) = optional_read(&store.parses, &cache_name, MAX_ARTIFACT_BYTES)? {
-                let parsed: ParsedDocument = serde_json::from_slice(&cached)?;
-                validate_document(&parsed, PARSER)?;
-                // Markdown normalization is byte-preserving; the cache must match its raw key.
-                if parsed.text.as_bytes() != bytes {
-                    return Err(source_error("parser cache does not match source bytes"));
-                }
-                parsed
+        let document = if let Some(cached) =
+            optional_read(&store.parses, &cache_name, MAX_ARTIFACT_BYTES)?
+        {
+            let parsed: ParsedDocument = if kind == ParserKind::Markdown {
+                // Preserve the already published Markdown cache format.
+                serde_json::from_slice(&cached)?
             } else {
-                parse_markdown(&bytes)?
+                let cache: ParseCache = serde_json::from_slice(&cached)?;
+                if cache.schema_version != 1 || cache.revision != revision || cache.parser != parser
+                {
+                    return Err(source_error("parser cache identity mismatch"));
+                }
+                let artifact = read_file(
+                    &store.artifacts,
+                    &format!("{}.json", cache.artifact.hex()),
+                    MAX_ARTIFACT_BYTES,
+                )?;
+                if digest(&artifact)? != cache.artifact {
+                    return Err(source_error("cached artifact integrity mismatch"));
+                }
+                serde_json::from_slice(&artifact)?
             };
+            validate_document(&parsed, parser)?;
+            kind.validate_raw(&bytes, &parsed)?;
+            parsed
+        } else {
+            kind.parse(&bytes)?
+        };
+        validate_document(&document, parser)?;
         let artifact_bytes = serde_json::to_vec(&document)?;
         if artifact_bytes.len() > MAX_ARTIFACT_BYTES {
             return Err(EngineError::TooLarge {
@@ -131,7 +167,7 @@ impl Wiki {
             origin,
             revision,
             artifact,
-            parser: PARSER.into(),
+            parser: parser.into(),
             byte_len: bytes.len() as u64,
             imported_at_unix_ms: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -153,7 +189,17 @@ impl Wiki {
             &format!("{}.json", record.artifact.hex()),
             &artifact_bytes,
         )?;
-        persist_immutable(&store.parses, &cache_name, &artifact_bytes)?;
+        let cache_bytes = if kind == ParserKind::Markdown {
+            artifact_bytes.clone()
+        } else {
+            serde_json::to_vec(&ParseCache {
+                schema_version: 1,
+                revision: record.revision.clone(),
+                parser: parser.into(),
+                artifact: record.artifact.clone(),
+            })?
+        };
+        persist_immutable(&store.parses, &cache_name, &cache_bytes)?;
         // The durable provenance sidecar is the source commit point. On catalog
         // failure, retry or rebuild recovers it without another parse/model call.
         persist_immutable(&store.records, &manifest_name, &record_bytes)?;
@@ -163,6 +209,7 @@ impl Wiki {
             api_version: API_VERSION,
             record,
             node_count: document.nodes.len(),
+            diagnostics: document.diagnostics,
             reused: false,
         })
     }
@@ -255,7 +302,14 @@ impl Wiki {
                 "offset must be a UTF-8 boundary within the artifact",
             ));
         }
+        let page_node = document
+            .nodes
+            .iter()
+            .find(|node| node.page.is_some() && node.start <= offset && offset < node.end);
         let mut end = offset.saturating_add(maximum).min(document.text.len());
+        if let Some(node) = page_node {
+            end = end.min(node.end);
+        }
         while !document.text.is_char_boundary(end) {
             end -= 1;
         }
@@ -272,11 +326,7 @@ impl Wiki {
                 artifact: record.artifact.clone(),
                 start: offset,
                 end,
-                page: document
-                    .nodes
-                    .iter()
-                    .find(|node| node.start <= offset && offset < node.end)
-                    .and_then(|node| node.page),
+                page: page_node.and_then(|node| node.page),
             },
             content: document.text[offset..end].to_owned(),
             next_offset: (end < document.text.len()).then_some(end),
@@ -363,89 +413,6 @@ impl Wiki {
     }
 }
 
-fn parse_markdown(bytes: &[u8]) -> Result<ParsedDocument, EngineError> {
-    let text = String::from_utf8(bytes.to_vec())?;
-    if text.len() > MAX_TEXT_BYTES {
-        return Err(EngineError::TooLarge {
-            maximum: MAX_TEXT_BYTES,
-        });
-    }
-    if text.trim().is_empty() {
-        return Err(source_error("source contains no text"));
-    }
-    let mut headings = Vec::new();
-    let mut current: Option<(usize, usize, String)> = None;
-    for (event, span) in Parser::new_ext(&text, Options::ENABLE_TABLES | Options::ENABLE_FOOTNOTES)
-        .into_offset_iter()
-    {
-        match event {
-            Event::Start(Tag::Heading { level, .. }) => {
-                current = Some((span.start, level as usize, String::new()))
-            }
-            Event::Text(value) | Event::Code(value) => {
-                if let Some((_, _, title)) = &mut current {
-                    title.push_str(&value);
-                }
-            }
-            Event::SoftBreak | Event::HardBreak => {
-                if let Some((_, _, title)) = &mut current {
-                    title.push(' ');
-                }
-            }
-            Event::End(TagEnd::Heading(_)) => {
-                if let Some(heading) = current.take() {
-                    headings.push(heading);
-                }
-            }
-            _ => {}
-        }
-        if headings.len() > MAX_NODES {
-            return Err(source_error("too many document headings"));
-        }
-    }
-    let title = headings
-        .first()
-        .map(|(_, _, title)| title.clone())
-        .unwrap_or_else(|| "Untitled document".into());
-    let mut nodes = vec![DocumentNode {
-        id: "root".into(),
-        parent: None,
-        title: title.clone(),
-        start: 0,
-        end: headings.first().map(|h| h.0).unwrap_or(text.len()),
-        page: None,
-    }];
-    let mut parents: Vec<(usize, String)> = vec![(0, "root".into())];
-    for (i, (start, level, heading)) in headings.iter().enumerate() {
-        while parents
-            .last()
-            .is_some_and(|(parent_level, _)| parent_level >= level)
-        {
-            parents.pop();
-        }
-        let id = format!("n{i:06}");
-        nodes.push(DocumentNode {
-            id: id.clone(),
-            parent: parents.last().map(|(_, id)| id.clone()),
-            title: heading.clone(),
-            start: *start,
-            end: headings.get(i + 1).map(|h| h.0).unwrap_or(text.len()),
-            page: None,
-        });
-        parents.push((*level, id));
-    }
-    let document = ParsedDocument {
-        schema_version: SOURCE_FORMAT_VERSION,
-        parser: PARSER.into(),
-        title,
-        text,
-        nodes,
-        diagnostics: Vec::new(),
-    };
-    validate_document(&document, PARSER)?;
-    Ok(document)
-}
-
 fn digest(bytes: &[u8]) -> Result<ContentHash, EngineError> {
     ContentHash::new(content_hash(bytes)).map_err(source_error)
 }
@@ -465,7 +432,7 @@ fn manifest_name(
 
 fn validate_record(record: &SourceRecord) -> Result<(), EngineError> {
     if record.schema_version != SOURCE_FORMAT_VERSION
-        || record.parser != PARSER
+        || ParserKind::for_identity(&record.parser).is_none()
         || record.byte_len > MAX_SOURCE_BYTES as u64
     {
         return Err(source_error("unsupported or invalid source manifest"));
@@ -524,11 +491,9 @@ fn load_document(
     }
     let document: ParsedDocument = serde_json::from_slice(&bytes)?;
     validate_document(&document, &record.parser)?;
-    if document.text.as_bytes() != raw {
-        return Err(source_error(
-            "Markdown artifact disagrees with its raw source",
-        ));
-    }
+    ParserKind::for_identity(&record.parser)
+        .ok_or_else(|| source_error("unsupported source parser"))?
+        .validate_raw(&raw, &document)?;
     Ok(document)
 }
 
@@ -603,6 +568,6 @@ fn persist_immutable(parent: &File, name: &str, bytes: &[u8]) -> Result<(), Engi
     Ok(())
 }
 
-fn source_error(error: impl std::fmt::Display) -> EngineError {
+pub(crate) fn source_error(error: impl std::fmt::Display) -> EngineError {
     EngineError::Source(error.to_string())
 }

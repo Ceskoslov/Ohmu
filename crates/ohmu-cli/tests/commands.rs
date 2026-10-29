@@ -95,3 +95,53 @@ fn markdown_ingest_list_paginated_read_and_catalog_rebuild_form_a_complete_cli_f
     let listed: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(listed["result"]["sources"][0]["source_id"], id);
 }
+
+#[test]
+fn html_cli_ingestion_exposes_parser_diagnostics_and_normalized_passages() {
+    let temp = tempdir().unwrap();
+    let root = temp.path().join("wiki");
+    let input = temp.path().join("article.html");
+    let paragraph =
+        "HTMLRESEARCH provides source evidence with sufficient context and detailed findings. "
+            .repeat(30);
+    std::fs::write(&input, format!("<!doctype html><html><head><title>HTML study</title></head><body><article><h1>HTML study</h1><p>{paragraph}</p></article></body></html>")).unwrap();
+    let wiki = root.to_str().unwrap();
+    assert!(ohmu(&["init", wiki]).status.success());
+    let output = ohmu(&["ingest", input.to_str().unwrap(), "--wiki", wiki, "--json"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        report["result"]["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|diagnostic| diagnostic
+                .as_str()
+                .unwrap()
+                .contains("normalized to Markdown"))
+    );
+    let id = report["result"]["record"]["source_id"].as_str().unwrap();
+    let revision = report["result"]["record"]["revision"].as_str().unwrap();
+    let output = ohmu(&[
+        "source",
+        id,
+        "--revision",
+        revision,
+        "--wiki",
+        wiki,
+        "--json",
+    ]);
+    assert!(output.status.success());
+    let passage: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        passage["result"]["content"]
+            .as_str()
+            .unwrap()
+            .contains("HTMLRESEARCH")
+    );
+    assert!(passage["result"]["locator"]["page"].is_null());
+}

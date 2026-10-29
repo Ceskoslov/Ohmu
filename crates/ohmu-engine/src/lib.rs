@@ -1,6 +1,6 @@
 //! Bounded, descriptor-relative reads for a local Markdown wiki.
 //!
-//! Supports Unix (Linux/WSL and macOS), immutable Markdown source ingestion and
+//! Supports Unix (Linux/WSL and macOS), immutable Markdown/HTML/PDF source ingestion and
 //! a rebuildable source catalog. Search and draft publication remain planned.
 
 #[cfg(not(unix))]
@@ -18,6 +18,7 @@ use thiserror::Error;
 
 mod sources;
 pub use sources::IngestReport;
+mod parsers;
 
 const CONFIG_FILE: &str = "ohmu.toml";
 const MAX_CONFIG_BYTES: usize = 16 * 1024;
@@ -176,12 +177,12 @@ impl Wiki {
                 "init".into(),
                 "doctor".into(),
                 "read".into(),
-                "markdown_ingest".into(),
+                "local_document_ingest".into(),
                 "source_catalog".into(),
                 "nausicaa_read_tool".into(),
             ],
             planned: vec![
-                "web_pdf_ingest".into(),
+                "url_ingest".into(),
                 "search".into(),
                 "drafts".into(),
                 "apply".into(),

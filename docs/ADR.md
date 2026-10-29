@@ -74,11 +74,25 @@ smaller corpus but is not the selected first implementation.
 
 ## ADR-005 — Rust parsing, no mandatory Python service (M1)
 
-Use pulldown-cmark with heading and source-offset support; reqwest/Rustls plus
-dom_smoothie for static HTML; pdf-extract for page-separated text. Keep a parser
+Use pulldown-cmark with heading and source-offset support; dom_smoothie plus
+dom_query Markdown serialization for local static HTML; pdf-extract with lopdf
+for page-separated text. URL fetching via reqwest/Rustls remains planned. Keep a parser
 interface returning normalized text, nodes, locators and diagnostics so a future
 OCR/layout adapter does not rewrite the engine. Content-address parser outputs
 with their parser version. File extensions alone are not trusted media validation.
+
+Local HTML/PDF ingestion is implemented with pinned parser versions. Existing
+Markdown artifacts keep their byte-preserving format. Normalized HTML/PDF
+artifacts additionally bind their raw revision; their parser-cache pointers
+verify artifact checksums and raw-revision association. Parser-affecting dependency
+upgrades require a new parser identity and compatibility fixtures.
+
+The selected direct parser crates report MIT license metadata. The pinned HTML
+stack also includes MPL-2.0 components: cssparser 0.37.0, cssparser-macros 0.7.1,
+dtoa-short 0.3.5 and selectors 0.38.0. These remain upstream dependencies with
+their own licenses; Ohmu's dual license describes Ohmu code, not a relicensing
+of dependencies. No dependencies are vendored or modified by this increment.
+Distribution notices/packaging remain an M4 deliverable.
 
 PDF extraction can lose reading order and tables. The v1 contract is traceable
 page text, not universal document understanding. Empty/scanned pages are flagged.

@@ -36,7 +36,7 @@ enum Command {
         #[arg(long, default_value = ".")]
         wiki: PathBuf,
     },
-    /// Import a local Markdown source without publishing a Wiki page.
+    /// Import a local Markdown, HTML or text PDF source without publishing a Wiki page.
     Ingest {
         path: PathBuf,
         #[arg(long, default_value = ".")]
@@ -111,11 +111,15 @@ fn run(command: Command) -> Result<(&'static str, Value, String), CliError> {
             Ok(("read", serde_json::to_value(snapshot)?, text))
         }
         Command::Ingest { path, wiki } => {
-            let report = Wiki::open(wiki)?.ingest_markdown(path)?;
-            let text = format!(
+            let report = Wiki::open(wiki)?.ingest_file(path)?;
+            let mut text = format!(
                 "{} @ {}\n{} nodes; reused: {}",
                 report.record.source_id, report.record.revision, report.node_count, report.reused
             );
+            if !report.diagnostics.is_empty() {
+                text.push_str("\nDiagnostics:\n");
+                text.push_str(&report.diagnostics.join("\n"));
+            }
             Ok(("ingest", serde_json::to_value(report)?, text))
         }
         Command::Sources { wiki } => {

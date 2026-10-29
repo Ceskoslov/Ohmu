@@ -107,3 +107,38 @@ document links and the local-host integration check all passed for this
 increment. This is partial M1; HTML/PDF, lexical search, page reconciliation and
 additional tools remain planned. See [SOURCES](SOURCES.md) for the implemented
 contract and [PLAN](PLAN.md) for the remaining exit criteria.
+
+## M1 increment: local HTML and text PDF parsing
+
+Added `Wiki::ingest_file` and CLI dispatch for local Markdown, HTML and PDF.
+`ingest_markdown` remains a compatible Markdown-only API. HTML extraction retains
+the original raw bytes and produces heading-aware normalized Markdown. PDF
+extraction creates physical-page nodes and clamps passages at page boundaries.
+Ingest reports now expose parser diagnostics in human and JSON output.
+
+The seven format integration tests and one new CLI test bring the suite to
+**29 passing integration tests**. New fixtures exercise:
+
++- HTML titles/headings, script/navigation exclusion, changed revisions and
+  deduplication across distinct file origins.
++- Multi-page PDF text, blank-page numbering, actual image-only PDF rejection,
+  encrypted PDFs (including empty user passwords) and the 2,000-page cap.
++- Malformed media, unsupported file suffixes, invalid UTF-8 and script-only HTML.
++- Checksummed normalized-cache pointers bound to their raw source revision,
+  mixed-format catalog rebuild and preserved old Markdown JSON bytes/hashes.
++- CLI HTML ingestion, visible diagnostics and normalized source passage reads.
+
+Raw/source/catalog format versions stay at 1. `ParsedDocument::source_revision`
+is a new optional serde field used for normalized formats; legacy Markdown
+omits it. Rust callers constructing ParsedDocument literals must supply `None`
+for legacy Markdown or the raw hash for normalized formats. No Nausicaa trait
+or durable runtime-event format changes.
+
+Passed locally: formatting, strict workspace Clippy, all tests, rustdoc with
+warnings denied, documentation links, pinned dependency metadata and the local
+Nausicaa consumer check. An actual CLI smoke run imported HTML and a two-page
+PDF, continued passages across physical pages, rebuilt the mixed catalog and
+ran the durable Nausicaa example successfully. The pinned parser dependencies' license metadata and
+the HTML stack's MPL-2.0 components are recorded in ADR-005. These checks do not
+establish arbitrary-PDF layout accuracy, process isolation or hosted macOS CI
+success. URL fetching, OCR and full-text search remain unimplemented.

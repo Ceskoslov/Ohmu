@@ -7,6 +7,8 @@ use thiserror::Error;
 pub const SOURCE_FORMAT_VERSION: u32 = 1;
 pub const MAX_SOURCE_BYTES: usize = 50 * 1024 * 1024;
 pub const MAX_TEXT_BYTES: usize = 16 * 1024 * 1024;
+/// Physical-page cap checked before extracting text from a PDF.
+pub const MAX_PDF_PAGES: usize = 2_000;
 
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 #[error("invalid content-addressed identifier")]
@@ -85,6 +87,10 @@ pub struct DocumentNode {
 pub struct ParsedDocument {
     pub schema_version: u32,
     pub parser: String,
+    /// Binds normalized formats to their raw bytes. Legacy byte-preserving
+    /// Markdown artifacts omit this field and retain their original hashes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_revision: Option<ContentHash>,
     pub title: String,
     pub text: String,
     pub nodes: Vec<DocumentNode>,

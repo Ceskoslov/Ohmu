@@ -1,7 +1,8 @@
-# Immutable Markdown sources (M1, first increment)
+# Immutable local document sources (M1)
 
 Implemented CLI: `ingest`, `sources`, `source`, `catalog-rebuild`. These are local
-source operations, not LLM generation or publication. Existing config v1 Wikis
+source operations, not LLM generation or publication. Ingest results include
+parser diagnostics in JSON; human CLI output prints them below the source identity. Existing config v1 Wikis
 need no migration: source directories and the derived SQLite catalog are created
 on the first import/rebuild, not by read-only `doctor` or `sources`.
 
@@ -11,7 +12,7 @@ on the first import/rebuild, not by read-only `doctor` or `sources`.
 raw/
   blobs/<raw-sha256-hex>                       # exact original bytes
   artifacts/<artifact-sha256-hex>.json         # ParsedDocument v1
-  parses/<raw-hex>-<parser-id-sha256-hex>.json  # reusable parser output
+  parses/<raw-hex>-<parser-id-sha256-hex>.json  # reusable output or checksum-bound pointer
   records/<origin-hex>-<raw-hex>-<parser-hex>.json
 .ohmu/
   sources.lock                               # advisory cross-process writer lock
@@ -25,12 +26,20 @@ bytes at one path retain the same source ID and create a new revision. Reimporti
 the same origin/revision/parser reuses its first committed record and timestamp;
 this is not an append-only retrieval-attempt audit log.
 
-The parser identity includes the Ohmu parser version and pinned pulldown-cmark
-version. Parsed JSON is itself SHA-256-addressed. Provenance sidecars retain the
+The parser identity includes the Ohmu parser version and pinned format-specific
+parser versions. Markdown uses pulldown-cmark 0.13.5; HTML uses dom_smoothie
+0.18.2, dom_query 0.28.0 and pulldown-cmark 0.13.5; PDF uses pdf-extract 0.12.1
+and lopdf 0.42.0. Parsed JSON is itself SHA-256-addressed. Provenance sidecars retain the
 origin, parser identity, raw/artifact hashes, raw byte count and first-import
 timestamp. JSON has independent `schema_version = 1`; unknown versions fail.
-Future parsers require explicit support and migration decisions, not silent
-reinterpretation of these records.
+New HTML/PDF artifacts include `source_revision`, binding normalized text to
+its original raw digest. The field is optional on deserialization and omitted
+for existing Markdown, preserving its exact artifact bytes and hashes.
+HTML/PDF caches store versioned raw/parser/artifact pointers and verify both the
+artifact checksum and raw-revision association before reuse. The previous
+Markdown cache representation remains supported unchanged. Future parser-affecting
+upgrades require explicit identities and compatibility decisions, not silent
+reinterpretation of these records. SQLite and source manifest versions remain 1.
 
 Objects are created as read-only files using descriptor-relative temporary writes,
 file sync, no-clobber hard links and directory sync. Source writes are serialized
@@ -48,10 +57,34 @@ source deletion is implemented.
 
 ## Parsing, locators and limits
 
-Only local `.md`/`.markdown` UTF-8 sources are supported in this increment. Reject
-empty input, invalid encoding and symlinked final source paths. Parent directories
-are trusted. Raw reads are capped at 50 MiB; retained Markdown text at 16 MiB;
-heading count at 20,000. Normalized Markdown preserves original UTF-8 bytes.
+Local `.md`/`.markdown`, `.html`/`.htm` and `.pdf` files are supported, case
+insensitively. `Wiki::ingest_file` selects the parser, and CLI `ingest` uses it.
+The existing `Wiki::ingest_markdown` remains a strict Markdown-only compatibility
+wrapper. Reject empty input, invalid text encoding, unsupported suffixes and
+symlinked final source paths. HTML requires actual markup and extractable article
+text; PDF requires a `%PDF-` signature and a loadable page tree. A suffix alone
+is never considered proof that HTML/PDF data is valid. Parent directories are
+trusted. Raw reads are capped at 50 MiB and retained text at 16 MiB; heading
+count is bounded at 20,000. Normalized Markdown preserves original UTF-8 bytes.
+
+HTML must be UTF-8. Readability extracts a static article and its metadata; the
+retained article HTML is serialized as Markdown, preserving available headings
+and links. Scripts, styles, embedded frames and SVG are excluded from normalized
+text. Relative links remain references; no images, stylesheets, scripts or URLs
+are fetched. Byte locators address normalized Markdown, never raw HTML offsets.
+
+PDF parsing is limited to 2,000 physical pages, checked before text extraction.
+Each page has a child node with its 1-based physical number. Bookmarks are not
+yet extracted; the structure is an honest page tree. Empty pages retain their
+position and emit diagnostics. Entirely non-text/image-only documents are rejected
+with an OCR requirement, as are encrypted documents (no password API is exposed).
+PDF text can lose reading order, glyph fidelity and table layout; retained original
+bytes and physical locators allow inspection. Two newline separator bytes belong
+to the preceding page. A bounded text writer aborts retained output above 16 MiB.
+These checks do not bound third-party decompression memory or CPU time. Parser
+unwinding from malformed PDFs is converted into an engine error before commit;
+the host's panic hook can still emit its own diagnostics. Process isolation is
+not implemented by this local library increment.
 
 The tree contains an introductory root segment and one node per actual Markdown
 heading, with its byte range until the next heading. Parent IDs follow heading
@@ -64,8 +97,10 @@ the extracted title. Code-fenced `#` text is not a heading.
 carry the parser artifact hash and half-open UTF-8 byte range. Start offsets must
 be valid character boundaries; end offsets round down to a boundary. A limit too
 small for the next character fails instead of returning a non-advancing cursor.
-Default CLI page size is 16 KiB, maximum 256 KiB. No physical PDF page is assigned
-to Markdown passages. The engine also exposes the full ParsedDocument for tree
+Default CLI page size is 16 KiB, maximum 256 KiB. PDF passages are additionally
+clamped to the current physical page; continue at `next_offset` to read the next
+page. Markdown and HTML passages have no PDF page number. At end-of-artifact, an
+empty read has no page number and no continuation. The engine also exposes the full ParsedDocument for tree
 navigation by embedding applications.
 
 Reads verify committed provenance and raw/artifact hashes before returning text.
@@ -95,6 +130,6 @@ these checks are not an OS sandbox against hostile concurrent directory swaps.
 
 ## Remaining M1 work
 
-Static HTML/URL and PDF parsers, page frontmatter/alias/link reconciliation,
+URL fetching, page frontmatter/alias/link reconciliation,
 lexical indexing, incremental search, query tools and page-read pagination remain
 in [PLAN](PLAN.md). This increment does not claim the full M1 exit criteria.

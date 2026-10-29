@@ -1,6 +1,6 @@
 # Architecture
 
-Status: S0 plus M1 Markdown source storage/catalog are implemented.
+Status: S0 plus M1 local Markdown/HTML/PDF source storage/catalog are implemented.
 [SOURCES](SOURCES.md) describes the implemented addition. Other M1–M4 behaviors
 remain planned unless explicitly marked complete in PLAN. [PLAN](PLAN.md) defines stage exits; [ADR](ADR.md) records decisions.
 
@@ -35,8 +35,8 @@ source locators/passages are also implemented. Changeset types remain planned.
 <wiki>/
   ohmu.toml             # schema_version = 1; name; no model credentials
   pages/welcome.md      # user-editable content
-  raw/                  # reserved for immutable source objects in M1
-  .ohmu/                # reserved for derived data/workflows; currently empty
+  raw/                  # immutable blobs, parser artifacts, caches and provenance records
+  .ohmu/                # derived source catalog and source writer lock
 ```
 
 `Wiki::init` creates only a previously nonexistent directory. The parent must
@@ -81,7 +81,7 @@ writes. It is not a content validator, writability test, or permission audit.
   a half-open UTF-8 byte range in a versioned normalized-text artifact. Quotes are
   checked against those bytes. Original PDF bytes remain available for inspection.
 - Wiki pages keep a stable ID in frontmatter, a human title, explicit aliases,
-  source references and Markdown links. S0 does not yet validate frontmatter;
+  source references and Markdown links. Page ingestion does not yet validate frontmatter;
   M1 must reject ID/path disagreement and duplicate IDs during reconciliation.
 - Links and entity relationships use SQLite adjacency tables with incoming and
   outgoing lookup; no graph database. An alias never silently merges entities.
