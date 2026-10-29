@@ -73,8 +73,8 @@ requires a new journal and refuses to reuse an existing file.
 
 ## Evidence limits
 
-macOS is configured in CI but was not run locally. There is no hosted CI result
-for this local-only repository. Native Windows is unsupported; Windows users
+macOS is configured in CI but was not run locally. Hosted CI results are not asserted by these local checks; the repository has
+since been synchronized to its user-created GitHub remote. Native Windows is unsupported; Windows users
 should use WSL. There is no live-model quality result, PDF/parser benchmark,
 10,000-source performance result, multi-page transaction or recovery guarantee
 at S0. Those require the fixtures and stage exits in [PLAN](PLAN.md).
@@ -83,3 +83,27 @@ The local-link checker does not crawl external sites or validate Markdown anchor
 fragments. File checks do not constitute an OS sandbox or perfect exclusion of
 uncooperative editor races. The current whole-page reader has a 256 KiB bound;
 source pagination and semantic provenance are future work.
+
+## M1 increment: Markdown sources and catalog
+
+The remote `git@github.com:Ceskoslov/Ohmu.git` was added and the initial scaffold
+synchronized to `origin/main` at the user's request. README.md is now English,
+with a Simplified Chinese switch to README.zh-CN.md; other documents remain English.
+
+The first M1 increment adds validated source/hash identifiers, immutable Markdown
+bytes and parser artifacts, source provenance sidecars, a rebuildable SQLite v1
+catalog, heading trees and bounded UTF-8 passage reads. Eight additional tests
+cover the new engine/CLI flow: **21 integration tests pass in total**.
+
+Validated cases include duplicate import reuse, distinct origins with shared
+content, changed content at one origin, retained old revisions after input
+deletion, catalog deletion/rebuild, exact heading parents, byte-locator
+reconstruction, malformed/empty input, final source/storage symlinks, corrupt
+artifacts, unknown catalog versions and nonblocking writer contention. The
+original policy/receipt tests continue to pass.
+
+Formatting, strict Clippy, workspace tests, rustdoc with warnings denied, local
+document links and the local-host integration check all passed for this
+increment. This is partial M1; HTML/PDF, lexical search, page reconciliation and
+additional tools remain planned. See [SOURCES](SOURCES.md) for the implemented
+contract and [PLAN](PLAN.md) for the remaining exit criteria.

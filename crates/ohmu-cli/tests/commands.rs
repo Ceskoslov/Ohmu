@@ -47,3 +47,51 @@ fn runtime_errors_are_json_on_stderr_and_planned_commands_are_not_exposed() {
     assert_eq!(value["error"]["code"], "operation_failed");
     assert_eq!(ohmu(&["search", "anything"]).status.code(), Some(2));
 }
+
+#[test]
+fn markdown_ingest_list_paginated_read_and_catalog_rebuild_form_a_complete_cli_flow() {
+    let temp = tempdir().unwrap();
+    let root = temp.path().join("wiki");
+    let input = temp.path().join("paper.md");
+    std::fs::write(&input, "# 研究\nPersistent evidence.\n").unwrap();
+    let wiki = root.to_str().unwrap();
+    assert!(ohmu(&["init", wiki]).status.success());
+    let output = ohmu(&["ingest", input.to_str().unwrap(), "--wiki", wiki, "--json"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let id = report["result"]["record"]["source_id"].as_str().unwrap();
+    let revision = report["result"]["record"]["revision"].as_str().unwrap();
+    let output = ohmu(&[
+        "source",
+        id,
+        "--revision",
+        revision,
+        "--limit",
+        "12",
+        "--wiki",
+        wiki,
+        "--json",
+    ]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let part: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        part["result"]["content"]
+            .as_str()
+            .unwrap()
+            .starts_with("# 研究")
+    );
+    assert!(part["result"]["next_offset"].is_number());
+    std::fs::remove_file(root.join(".ohmu/catalog.sqlite")).unwrap();
+    assert!(ohmu(&["catalog-rebuild", "--wiki", wiki]).status.success());
+    let output = ohmu(&["sources", "--wiki", wiki, "--json"]);
+    let listed: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(listed["result"]["sources"][0]["source_id"], id);
+}

@@ -5,6 +5,9 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+mod source;
+pub use source::*;
+
 /// Current on-disk configuration format. Unknown versions are rejected.
 pub const CONFIG_VERSION: u32 = 1;
 /// Version of CLI JSON and tool result envelopes.

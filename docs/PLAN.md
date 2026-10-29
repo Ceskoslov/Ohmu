@@ -10,7 +10,9 @@ explicit review and apply.
 
 The agreed initial delivery is **S0: complete design plus a runnable scaffold**.
 M1–M4 below describe the full product and must not be presented as complete at
-S0. The repository is local Git only; no GitHub creation or push is included.
+S0. The initial scaffold was local-only. The user subsequently created
+[the Ohmu remote](https://github.com/Ceskoslov/Ohmu) and authorized staged
+implementation and synchronization to `origin/main`.
 README is bilingual with language switch links; other documents are English.
 
 Out of v1: embeddings of any kind, vector databases/search, model training, OCR,
@@ -66,7 +68,14 @@ commit only after checks, without a remote or a Nausicaa source change.
 
 ## M1 — sources, deterministic structure and lexical retrieval
 
-**Status: planned. Depends on S0.**
+**Status: in progress. Depends on S0.**
+
+- Completed: validated source IDs/revisions/locators, deterministic Markdown
+  heading trees, immutable raw/parser artifacts and provenance sidecars.
+- Completed: SQLite v1 source catalog, duplicate parse reuse, source listing,
+  UTF-8 source pagination and catalog rebuild. See [SOURCES](SOURCES.md).
+- Remaining: HTML/PDF ingestion, page reconciliation/relationships, Tantivy/Jieba
+  indexing, query tools and the complete M1 exit matrix.
 
 1. Add versioned SourceId/SourceRevision, SourceLocator and DocumentNode domain
    types. Track source bytes, parser version, text artifact hash and physical pages.

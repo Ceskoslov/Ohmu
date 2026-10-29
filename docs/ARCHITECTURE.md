@@ -1,7 +1,8 @@
 # Architecture
 
-Status: runnable S0 scaffold. Product behaviors marked M1–M4 are planned, not
-implemented. [PLAN](PLAN.md) defines stage exits; [ADR](ADR.md) records decisions.
+Status: S0 plus M1 Markdown source storage/catalog are implemented.
+[SOURCES](SOURCES.md) describes the implemented addition. Other M1–M4 behaviors
+remain planned unless explicitly marked complete in PLAN. [PLAN](PLAN.md) defines stage exits; [ADR](ADR.md) records decisions.
 
 ## Ownership and dependency direction
 
@@ -25,8 +26,8 @@ installs an executor and selects an event store. The CLI currently uses only the
 engine; the example demonstrates harness composition separately.
 
 The domain crate currently exports validated PageId, PageSnapshot, WikiConfig and
-version/read-limit constants. Source, tree and changeset types are planned below,
-not existing Rust APIs.
+version/read-limit constants. Source IDs, content hashes, source records, document nodes, parsed documents and
+source locators/passages are also implemented. Changeset types remain planned.
 
 ## Implemented storage and read semantics
 

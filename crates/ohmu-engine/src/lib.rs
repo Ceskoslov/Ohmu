@@ -1,7 +1,7 @@
 //! Bounded, descriptor-relative reads for a local Markdown wiki.
 //!
-//! The scaffold supports Unix (Linux/WSL and macOS). It does not implement
-//! ingest, search, drafts, publication or a multi-page snapshot protocol yet.
+//! Supports Unix (Linux/WSL and macOS), immutable Markdown source ingestion and
+//! a rebuildable source catalog. Search and draft publication remain planned.
 
 #[cfg(not(unix))]
 compile_error!("Ohmu currently supports Unix only; use WSL on Windows.");
@@ -15,6 +15,9 @@ use rustix::fs::{Mode, OFlags, open, openat};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
+
+mod sources;
+pub use sources::IngestReport;
 
 const CONFIG_FILE: &str = "ohmu.toml";
 const MAX_CONFIG_BYTES: usize = 16 * 1024;
@@ -38,6 +41,12 @@ pub enum EngineError {
     Conflict,
     #[error("file changed while being read; retry the read")]
     UnstableRead,
+    #[error("source/catalog error: {0}")]
+    Source(String),
+    #[error("catalog database error: {0}")]
+    Database(#[from] rusqlite::Error),
+    #[error("source serialization error: {0}")]
+    Json(#[from] serde_json::Error),
     #[error("file is not UTF-8: {0}")]
     Utf8(#[from] std::string::FromUtf8Error),
 }
@@ -167,10 +176,12 @@ impl Wiki {
                 "init".into(),
                 "doctor".into(),
                 "read".into(),
+                "markdown_ingest".into(),
+                "source_catalog".into(),
                 "nausicaa_read_tool".into(),
             ],
             planned: vec![
-                "ingest".into(),
+                "web_pdf_ingest".into(),
                 "search".into(),
                 "drafts".into(),
                 "apply".into(),

@@ -69,7 +69,7 @@ ownership of a persistent journal across processes.
 ## Portable pinned Git consumption
 
 An application outside the Nausicaa workspace should use the same source for the
-core that Ohmu uses. Before Ohmu has a remote, use a relative local adapter path:
+core that Ohmu uses. For local development, use a relative local adapter path:
 
 ```toml
 [dependencies]
@@ -78,8 +78,9 @@ ohmu-nausicaa = { path = "../Ohmu/crates/ohmu-nausicaa" }
 agent-harness-core = { git = "https://github.com/Ceskoslov/Nausicaa.git", rev = "a2ab5b365cfb29bedd48d29b69951510ae5d1ef5" }
 ```
 
-Adjust relative paths to the consumer manifest. Do not invent an Ohmu remote URL
-or rely on a crates.io publication that does not exist. Keep the supported Git
+Adjust relative paths to the consumer manifest. The Ohmu remote is `https://github.com/Ceskoslov/Ohmu.git`; a remote consumer
+may use it with an explicitly selected, tested commit. Do not use a floating
+branch for a reproducible release or assume a crates.io publication exists. Keep the supported Git
 URL/revision consistent across the host, adapter and optional provider crates.
 
 ## Local two-repository development

@@ -8,12 +8,13 @@ Ohmu integrates with [Nausicaa](https://github.com/Ceskoslov/Nausicaa) across se
 
 ## Current status
 
-This is a **complete design and runnable scaffold**, not the fully implemented wiki product.
+**S0 and the first part of M1 (Markdown sources and catalog) are implemented.** The full product is being delivered in stages.
 
 | Implemented | Planned, not implemented |
 | --- | --- |
-| Wiki initialization, configuration and layout diagnostics | Markdown, static web and text PDF ingestion |
+| Wiki initialization, configuration and layout diagnostics | Static web and text PDF ingestion |
 | Bounded Markdown reads with SHA-256 revisions | Chinese tokenization, BM25 search, tree and link navigation |
+| Markdown imports, immutable revisions, catalog rebuild and UTF-8 pagination | Full-text indexing and page relation maintenance |
 | Nausicaa `ohmu_read` tool | LLM drafts, multi-page review/publication and recovery |
 | Credential-free integration example and durable receipt checks | Source-cited question answering and scale evaluation |
 
@@ -36,6 +37,16 @@ cargo run -p ohmu-nausicaa --example read_wiki -- /tmp/ohmu-demo /tmp/ohmu-demo-
 ```
 
 The event file must not already exist. The example uses a scripted model and verifies that a tool result is persisted before reaching the model. It does not establish live-model answer quality.
+
+Import local Markdown as original evidence without creating or publishing a Wiki page:
+
+```sh
+cargo run -p ohmu-cli -- ingest ./README.md --wiki /tmp/ohmu-demo --json
+cargo run -p ohmu-cli -- sources --wiki /tmp/ohmu-demo --json
+cargo run -p ohmu-cli -- catalog-rebuild --wiki /tmp/ohmu-demo
+```
+
+`ingest` returns the source ID, raw revision and parser artifact hash. Use `source <id> --revision <hash> --wiki <directory>` to read a pinned revision, with `--offset` and `--limit` byte pagination. `catalog-rebuild` restores SQLite metadata from provenance manifests. Web/PDF ingestion and full-text search are not implemented yet.
 
 ## Design and integration
 
