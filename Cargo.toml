@@ -1,0 +1,30 @@
+[workspace]
+members = ["crates/ohmu-core", "crates/ohmu-engine", "crates/ohmu-nausicaa", "crates/ohmu-cli"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+ohmu-core = { path = "crates/ohmu-core" }
+ohmu-engine = { path = "crates/ohmu-engine" }
+ohmu-nausicaa = { path = "crates/ohmu-nausicaa" }
+agent-harness-core = { git = "https://github.com/Ceskoslov/Nausicaa.git", rev = "a2ab5b365cfb29bedd48d29b69951510ae5d1ef5" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+sha2 = "0.10.9"
+toml = "0.9"
+clap = { version = "4.6", features = ["derive"] }
+rustix = { version = "1.1", features = ["fs"] }
+tempfile = "3"
+tokio = { version = "1.48", features = ["rt", "macros", "time"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"

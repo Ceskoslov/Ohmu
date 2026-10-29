@@ -1,0 +1,39 @@
+name: Rust and documentation
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.98.0 --profile minimal --component rustfmt --component clippy
+      - run: cargo fetch --locked
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
+      - run: cargo test --workspace --all-features --locked --offline
+      - run: cargo doc --workspace --all-features --no-deps --locked --offline
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - run: python3 scripts/check_docs.py
+      - name: Verify pinned Git core is unique
+        run: |
+          cargo metadata --format-version 1 --locked --offline > "$RUNNER_TEMP/ohmu-metadata.json"
+          python3 -c 'import json,sys; p=[p for p in json.load(open(sys.argv[1]))["packages"] if p["name"]=="agent-harness-core"]; assert len(p)==1 and p[0]["source"].endswith("#a2ab5b365cfb29bedd48d29b69951510ae5d1ef5")' "$RUNNER_TEMP/ohmu-metadata.json"
+      - name: Verify local host compatibility
+        run: |
+          git clone --no-checkout https://github.com/Ceskoslov/Nausicaa.git "$RUNNER_TEMP/Nausicaa"
+          git -C "$RUNNER_TEMP/Nausicaa" checkout --detach a2ab5b365cfb29bedd48d29b69951510ae5d1ef5
+          python3 scripts/check_local_host.py --nausicaa "$RUNNER_TEMP/Nausicaa"
+      - run: git diff --exit-code
+      - run: git diff --check

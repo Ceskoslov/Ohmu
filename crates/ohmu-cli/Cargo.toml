@@ -1,0 +1,24 @@
+[package]
+name = "ohmu-cli"
+description = "Local command-line interface for Ohmu"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "ohmu"
+path = "src/main.rs"
+
+[dependencies]
+ohmu-core.workspace = true
+ohmu-engine.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

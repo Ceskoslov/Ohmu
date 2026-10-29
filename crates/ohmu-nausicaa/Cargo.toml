@@ -1,0 +1,21 @@
+[package]
+name = "ohmu-nausicaa"
+description = "Nausicaa tool adapters for the Ohmu vectorless wiki"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+agent-harness-core.workspace = true
+ohmu-core.workspace = true
+ohmu-engine.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true
