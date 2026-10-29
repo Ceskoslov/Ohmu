@@ -12,6 +12,7 @@ impl Wiki {
     /// Fetch one public HTTP(S) resource, following at most five validated redirects.
     /// No proxies, credentials, automatic retries or subresource fetching.
     pub fn ingest_url(&self, address: &str) -> Result<IngestReport, EngineError> {
+        self.require_recovered()?;
         self.import_url(address, false)
     }
 

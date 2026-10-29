@@ -9,6 +9,7 @@ compile_error!("Ohmu currently supports Unix only; use WSL on Windows.");
 
 use std::fs::{self, File};
 use std::io::{Read, Write};
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use ohmu_core::{API_VERSION, CONFIG_VERSION, MAX_PAGE_BYTES, PageId, PageSnapshot, WikiConfig};
@@ -21,8 +22,12 @@ mod sources;
 pub use sources::IngestReport;
 mod pages;
 mod parsers;
+mod publication;
 mod search;
 mod web;
+pub use publication::RecoveryMode;
+mod backup;
+pub use backup::BackupManifest;
 
 const CONFIG_FILE: &str = "ohmu.toml";
 const MAX_CONFIG_BYTES: usize = 16 * 1024;
@@ -54,6 +59,8 @@ pub enum EngineError {
     Json(#[from] serde_json::Error),
     #[error("index is stale or unavailable; run reindex: {0}")]
     StaleIndex(String),
+    #[error("publication {0} requires explicit recovery before further live reads or writes")]
+    RecoveryRequired(String),
     #[error("file is not UTF-8: {0}")]
     Utf8(#[from] std::string::FromUtf8Error),
 }
@@ -66,6 +73,11 @@ pub struct Wiki {
     directory: File,
     pages: File,
     config: WikiConfig,
+}
+
+pub(crate) struct LiveReadGuard {
+    _root: File,
+    _legacy: Option<File>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -140,9 +152,80 @@ impl Wiki {
         &self.config
     }
 
+    /// Exact filesystem identity for write approvals, including non-UTF-8 paths.
+    pub fn authority_scope(&self) -> Result<String, EngineError> {
+        let root = self.directory.metadata()?;
+        let pages = self.pages.metadata()?;
+        Ok(format!(
+            "{} [{}:{};pages={}:{}]",
+            self.root.display(),
+            root.dev(),
+            root.ino(),
+            pages.dev(),
+            pages.ino()
+        ))
+    }
+
+    pub(crate) fn check_write_root(&self) -> Result<(), EngineError> {
+        let root = open_directory(&self.root)?;
+        let current = root.metadata()?;
+        let held = self.directory.metadata()?;
+        let pages = open_child_directory(&root, "pages")?.metadata()?;
+        let held_pages = self.pages.metadata()?;
+        if (current.dev(), current.ino(), pages.dev(), pages.ino())
+            != (held.dev(), held.ino(), held_pages.dev(), held_pages.ino())
+        {
+            return Err(EngineError::Conflict);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn root_lock(&self, exclusive: bool) -> Result<File, EngineError> {
+        let lock = open_child_directory(&self.directory, ".")?;
+        rustix::fs::flock(
+            &lock,
+            if exclusive {
+                rustix::fs::FlockOperation::NonBlockingLockExclusive
+            } else {
+                rustix::fs::FlockOperation::NonBlockingLockShared
+            },
+        )
+        .map_err(std::io::Error::from)?;
+        Ok(lock)
+    }
+
+    pub(crate) fn live_read_guard(&self) -> Result<LiveReadGuard, EngineError> {
+        let root = self.root_lock(false)?;
+        let internal = open_child_directory(&self.directory, ".ohmu")?;
+        let legacy = match openat(
+            &internal,
+            "sources.lock",
+            OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::CLOEXEC | OFlags::NONBLOCK,
+            Mode::empty(),
+        ) {
+            Ok(fd) => {
+                let lock = File::from(fd);
+                if !lock.metadata()?.is_file() {
+                    return Err(EngineError::NotRegular("sources.lock".into()));
+                }
+                rustix::fs::flock(&lock, rustix::fs::FlockOperation::NonBlockingLockShared)
+                    .map_err(std::io::Error::from)?;
+                Some(lock)
+            }
+            Err(rustix::io::Errno::NOENT) => None,
+            Err(error) => return Err(std::io::Error::from(error).into()),
+        };
+        Ok(LiveReadGuard {
+            _root: root,
+            _legacy: legacy,
+        })
+    }
+
     /// Read at most 256 KiB from a regular UTF-8 page, without following links.
     /// The hash identifies exactly the returned bytes, including frontmatter.
     pub fn read_page(&self, page_id: &PageId) -> Result<PageSnapshot, EngineError> {
+        let _guard = self.live_read_guard()?;
+        self.require_recovered()?;
         let name = format!("{page_id}.md");
         let content = String::from_utf8(read_file(&self.pages, &name, MAX_PAGE_BYTES)?)?;
         Ok(PageSnapshot {
@@ -189,8 +272,12 @@ impl Wiki {
                 "search".into(),
                 "page_relations".into(),
                 "nausicaa_read_tool".into(),
+                "drafts".into(),
+                "apply_recover".into(),
+                "snapshots".into(),
+                "backup_restore".into(),
             ],
-            planned: vec!["drafts".into(), "apply".into(), "ask".into()],
+            planned: vec!["ask".into()],
         })
     }
 }

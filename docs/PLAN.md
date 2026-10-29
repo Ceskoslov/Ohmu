@@ -107,7 +107,9 @@ included in a destructive rebuild command.
 
 ## M2 — knowledge drafts, publication and recovery
 
-**Status: planned. Depends on M1.**
+**Status: implemented. Depends on M1.**
+
+See [PUBLICATION](PUBLICATION.md) for the implemented contract and recovery limits.
 
 1. Specify versioned Draft/ChangeSet/ApplyOperation formats and SQL migrations.
    Use full proposed page bytes and expected prior hashes rather than model-

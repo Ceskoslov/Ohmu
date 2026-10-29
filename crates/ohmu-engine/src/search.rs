@@ -174,7 +174,7 @@ impl Wiki {
     pub fn reindex(&self, rebuild: bool) -> Result<ReindexReport, EngineError> {
         self.rebuild_source_catalog()?;
         let _lock = self.source_store()?;
-        let pages = self.page_documents()?;
+        let pages = self.page_documents_unlocked()?;
         let records = self.source_records()?;
         let current = entities(&pages, &records);
         let fingerprint = generation(&current)?;
@@ -306,7 +306,12 @@ impl Wiki {
         }
         // Ordinary editor races are detected before committing the index. Query
         // generation checks also catch edits occurring after this point.
-        if fingerprint != generation(&entities(&self.page_documents()?, &self.source_records()?))? {
+        if fingerprint
+            != generation(&entities(
+                &self.page_documents_unlocked()?,
+                &self.source_records()?,
+            ))?
+        {
             writer.rollback().map_err(error)?;
             return Err(EngineError::Conflict);
         }

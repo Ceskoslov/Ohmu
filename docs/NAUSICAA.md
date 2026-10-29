@@ -165,3 +165,12 @@ whole-page output shape. Query tools freeze normalized inputs and result digests
 reject changed scopes/content, and use existing durable receipts. Search never
 rebuilds an index as a side effect. See [RETRIEVAL](RETRIEVAL.md) for schemas,
 limits, collection defaults and the incremental index contract.
+
+## M2 maintenance tools
+
+`register_maintenance_tools` explicitly adds stage and apply. `maintenance_policy`
+grants stage and marks apply Ask. Existing read/query policies remain unchanged.
+Preparation freezes full proposed bytes or the draft/base/operation digest;
+execution validates root and pages filesystem identity. Durable engine operation
+IDs reconcile unknown publication receipts. No model recovery, backup or network
+capability is granted. See [PUBLICATION](PUBLICATION.md).

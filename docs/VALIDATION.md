@@ -163,3 +163,15 @@ trait format changes. New query tools require explicit grants.
 Passed: the locked workspace suite (45 tests), strict Clippy, formatting,
 rustdoc, documentation/README checks and local-host type compatibility. M4
 performance and live model quality are not inferred from these fixtures.
+
+## M2 publication and recovery
+
+The 58-test workspace suite covers pure preparation, stage idempotency, exact
+apply approval, all implemented journal/write interruption phases with reopen,
+finish/rollback, retained divergent editor content, missing/corrupt objects,
+immutable snapshots, shared reader/exclusive writer contention, state-version
+rejection and backup/restore with durable SQL state. CLI and harness flows
+exercise review, explicit publication and reconciliation. Full validation uses
+the reproduction commands above; simulated failures do not establish physical
+power-loss durability or exclusion against uncooperative editors. No live model
+requests or Nausicaa modifications are needed.

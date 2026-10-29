@@ -126,6 +126,24 @@ pub struct SourceLocator {
     pub page: Option<u32>,
 }
 
+impl SourceLocator {
+    #[must_use]
+    pub fn evidence_url(&self) -> String {
+        let mut url = format!(
+            "ohmu-source://{}/{}/{}?start={}&end={}",
+            self.source_id,
+            self.revision.hex(),
+            self.artifact.hex(),
+            self.start,
+            self.end
+        );
+        if let Some(page) = self.page {
+            url.push_str(&format!("&page={page}"));
+        }
+        url
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SourcePassage {
     pub api_version: u32,

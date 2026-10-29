@@ -197,3 +197,63 @@ fn m1_cli_reconciles_links_indexes_searches_and_detects_external_changes() {
         Some(1)
     );
 }
+
+#[test]
+fn m2_cli_stages_reviews_publishes_snapshots_and_restores_a_backup() {
+    let temp = tempdir().unwrap();
+    let root = temp.path().join("wiki");
+    let wiki = root.to_str().unwrap();
+    assert!(ohmu(&["init", wiki]).status.success());
+    let input = temp.path().join("proposal.json");
+    std::fs::write(&input,r##"{"summary":"Create a note","pages":[{"page_id":"note","expected_revision":null,"content":"# Note\n[[welcome]]\n","citations":[]}]}"##).unwrap();
+    let output = ohmu(&["stage", input.to_str().unwrap(), "--wiki", wiki, "--json"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let id = value["result"]["id"].as_str().unwrap();
+    assert!(!root.join("pages/note.md").exists());
+    for args in [
+        vec!["drafts", "--wiki", wiki],
+        vec!["draft", id, "--wiki", wiki],
+        vec!["diff", id, "--wiki", wiki],
+        vec!["apply", id, "--wiki", wiki],
+        vec!["operations", "--wiki", wiki],
+    ] {
+        let output = ohmu(&args);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    assert!(root.join("pages/note.md").exists());
+    let output = ohmu(&["snapshot", "--wiki", wiki, "--json"]);
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let snapshot = value["result"]["id"].as_str().unwrap();
+    assert!(
+        ohmu(&["snapshot-read", snapshot, "note", "--wiki", wiki])
+            .status
+            .success()
+    );
+    let backup = temp.path().join("backup");
+    let restored = temp.path().join("restored");
+    assert!(
+        ohmu(&["backup", backup.to_str().unwrap(), "--wiki", wiki])
+            .status
+            .success()
+    );
+    let output = ohmu(&[
+        "restore",
+        backup.to_str().unwrap(),
+        restored.to_str().unwrap(),
+    ]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(restored.join("pages/note.md").exists());
+}

@@ -83,3 +83,10 @@ python3 scripts/check_local_host.py --nausicaa ../Nausicaa
 首次运行前先执行 `cargo fetch --locked`。本地覆盖检查只创建临时消费应用，不修改 Nausicaa 或本仓库锁文件。
 
 代码按 MIT 或 Apache-2.0 双许可证发布，使用者可任选其一。
+
+M1–M2 已实现：无向量检索、可审阅草稿、显式发布、中断恢复与备份。
+使用 `stage proposal.json`、`drafts`、`draft <digest>`、`diff <digest>` 审阅，
+再用 `apply <digest>` 显式发布。中断后使用 `operations` 和
+`recover <operation> --strategy finish|rollback`。`snapshot`、`snapshot-read`、
+`backup <新目录>`、`restore <备份> <新目录>` 保留知识及持久工作流状态。
+提案格式、证据和恢复限制见[发布说明](docs/PUBLICATION.md)。模型生成将在 M3 加入。

@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand};
 use ohmu_core::{
     API_VERSION, ContentHash, InvalidDigest, InvalidPageId, PageId, SearchCollection, SourceId,
 };
-use ohmu_engine::{EngineError, Wiki};
+use ohmu_engine::{EngineError, RecoveryMode, Wiki};
 use serde_json::{Value, json};
 use thiserror::Error;
 
@@ -123,6 +123,72 @@ enum Command {
         limit: usize,
         #[arg(long, default_value = ".")]
         wiki: PathBuf,
+    },
+    /// Validate and stage a JSON proposal; never publish automatically.
+    Stage {
+        file: PathBuf,
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    Drafts {
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    Draft {
+        id: String,
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    Diff {
+        id: String,
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    /// Publish exactly the immutable draft identified by this digest.
+    Apply {
+        id: String,
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    Operations {
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    Operation {
+        id: String,
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    /// Reconcile a pending operation using recorded bytes; divergent edits fail.
+    Recover {
+        id: String,
+        #[arg(long,value_parser=["finish","rollback"])]
+        strategy: String,
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    Snapshot {
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    SnapshotRead {
+        snapshot: String,
+        page_id: String,
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
+        #[arg(long, default_value_t = 16384)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    Backup {
+        destination: PathBuf,
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    Restore {
+        backup: PathBuf,
+        destination: PathBuf,
     },
 }
 
@@ -323,6 +389,95 @@ fn run(command: Command) -> Result<(&'static str, Value, String), CliError> {
                 .collect::<Vec<_>>()
                 .join("\n\n");
             Ok(("search", serde_json::to_value(report)?, text))
+        }
+        Command::Stage { file, wiki } => {
+            let draft = Wiki::open(wiki)?.stage_file(file)?;
+            let text = format!(
+                "Staged {}: {} ({} pages)",
+                draft.id,
+                draft.proposal.summary,
+                draft.proposal.pages.len()
+            );
+            Ok(("stage", serde_json::to_value(draft)?, text))
+        }
+        Command::Drafts { wiki } => {
+            let drafts = Wiki::open(wiki)?.drafts()?;
+            let summaries=drafts.iter().map(|draft|json!({"id":draft.id,"summary":draft.proposal.summary,"pages":draft.proposal.pages.len()})).collect::<Vec<_>>();
+            let text = serde_json::to_string_pretty(&summaries)?;
+            Ok(("drafts", json!({"drafts":summaries}), text))
+        }
+        Command::Draft { id, wiki } => {
+            let draft = Wiki::open(wiki)?.draft(&ContentHash::new(id)?)?;
+            let text = serde_json::to_string_pretty(&draft)?;
+            Ok(("draft", serde_json::to_value(draft)?, text))
+        }
+        Command::Diff { id, wiki } => {
+            let diff = Wiki::open(wiki)?.draft_diff(&ContentHash::new(id)?)?;
+            Ok(("diff", json!({"diff":diff}), diff))
+        }
+        Command::Apply { id, wiki } => {
+            let report = Wiki::open(wiki)?.apply(&ContentHash::new(id)?)?;
+            let text = serde_json::to_string_pretty(&report)?;
+            Ok(("apply", serde_json::to_value(report)?, text))
+        }
+        Command::Operations { wiki } => {
+            let operations = Wiki::open(wiki)?.operations()?;
+            let text = serde_json::to_string_pretty(&operations)?;
+            Ok(("operations", json!({"operations":operations}), text))
+        }
+        Command::Operation { id, wiki } => {
+            let operation = Wiki::open(wiki)?.operation(&ContentHash::new(id)?)?;
+            let text = serde_json::to_string_pretty(&operation)?;
+            Ok(("operation", operation, text))
+        }
+        Command::Recover { id, strategy, wiki } => {
+            let mode = if strategy == "finish" {
+                RecoveryMode::Finish
+            } else {
+                RecoveryMode::Rollback
+            };
+            let report = Wiki::open(wiki)?.recover(&ContentHash::new(id)?, mode)?;
+            let text = serde_json::to_string_pretty(&report)?;
+            Ok(("recover", serde_json::to_value(report)?, text))
+        }
+        Command::Snapshot { wiki } => {
+            let snapshot = Wiki::open(wiki)?.freeze_snapshot()?;
+            let text = format!(
+                "Snapshot {}: {} pages, {} sources",
+                snapshot.id,
+                snapshot.pages.len(),
+                snapshot.sources.len()
+            );
+            Ok(("snapshot", serde_json::to_value(snapshot)?, text))
+        }
+        Command::SnapshotRead {
+            snapshot,
+            page_id,
+            offset,
+            limit,
+            wiki,
+        } => {
+            let passage = Wiki::open(wiki)?.read_snapshot_page(
+                &ContentHash::new(snapshot)?,
+                &PageId::new(page_id)?,
+                offset,
+                limit,
+            )?;
+            let text = passage.content.clone();
+            Ok(("snapshot-read", serde_json::to_value(passage)?, text))
+        }
+        Command::Backup { destination, wiki } => {
+            let manifest = Wiki::open(wiki)?.backup(destination)?;
+            let text = format!("Backup {}: {} files", manifest.id, manifest.files.len());
+            Ok(("backup", serde_json::to_value(manifest)?, text))
+        }
+        Command::Restore {
+            backup,
+            destination,
+        } => {
+            let wiki = Wiki::restore(backup, destination)?;
+            let text = format!("Restored {}", wiki.root().display());
+            Ok(("restore", json!({"root":wiki.root()}), text))
         }
     }
 }

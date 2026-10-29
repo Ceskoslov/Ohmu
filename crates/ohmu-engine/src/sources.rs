@@ -46,6 +46,7 @@ struct ParseCache {
 }
 
 pub(crate) struct SourceStore {
+    _root_lock: File,
     _lock: File,
     raw: File,
     blobs: File,
@@ -442,6 +443,14 @@ impl Wiki {
     }
 
     pub(crate) fn source_store(&self) -> Result<SourceStore, EngineError> {
+        let store = self.source_store_unchecked()?;
+        self.require_recovered()?;
+        Ok(store)
+    }
+
+    pub(crate) fn source_store_unchecked(&self) -> Result<SourceStore, EngineError> {
+        self.check_write_root()?;
+        let root_lock = self.root_lock(true)?;
         let internal = open_child_directory(&self.directory, ".ohmu")?;
         let lock = File::from(
             openat(
@@ -469,6 +478,7 @@ impl Wiki {
         raw.sync_all()?;
         internal.sync_all()?;
         Ok(SourceStore {
+            _root_lock: root_lock,
             _lock: lock,
             raw,
             blobs,
@@ -628,7 +638,11 @@ fn optional_read(parent: &File, name: &str, limit: usize) -> Result<Option<Vec<u
     }
 }
 
-fn persist_immutable(parent: &File, name: &str, bytes: &[u8]) -> Result<(), EngineError> {
+pub(crate) fn persist_immutable(
+    parent: &File,
+    name: &str,
+    bytes: &[u8],
+) -> Result<(), EngineError> {
     if let Some(existing) = optional_read(parent, name, bytes.len())? {
         if existing != bytes {
             return Err(source_error(

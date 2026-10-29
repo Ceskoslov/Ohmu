@@ -17,6 +17,10 @@ use serde_json::json;
 
 mod query;
 pub use query::{QueryTool, QueryToolKind, query_policy, register_query_tools};
+mod maintenance;
+pub use maintenance::{
+    MaintenanceTool, MaintenanceToolKind, maintenance_policy, register_maintenance_tools,
+};
 
 pub const READ_TOOL: &str = "ohmu_read";
 

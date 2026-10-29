@@ -24,7 +24,7 @@ tempfile = "3"
 tokio = { version = "1.48", features = ["rt", "macros", "time"] }
 # Keep parser versions synchronized with persisted identities in parsers.rs.
 pulldown-cmark = "=0.13.5"
-rusqlite = { version = "0.41", default-features = false, features = ["bundled"] }
+rusqlite = { version = "0.41", default-features = false, features = ["bundled", "backup"] }
 dom_smoothie = "=0.18.2"
 dom_query = { version = "=0.28.0", features = ["markdown"] }
 pdf-extract = "=0.12.1"

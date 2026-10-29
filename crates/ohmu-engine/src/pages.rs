@@ -66,6 +66,8 @@ impl Wiki {
         offset: usize,
         maximum: usize,
     ) -> Result<PagePassage, EngineError> {
+        let _guard = self.live_read_guard()?;
+        self.require_recovered()?;
         if maximum == 0 || maximum > MAX_PAGE_BYTES {
             return Err(source_error("page passage limit must be 1..=262144"));
         }
@@ -100,6 +102,19 @@ impl Wiki {
     }
 
     pub(crate) fn page_documents(&self) -> Result<Vec<PageDocument>, EngineError> {
+        let _guard = self.live_read_guard()?;
+        self.require_recovered()?;
+        self.page_documents_unlocked()
+    }
+
+    pub(crate) fn page_documents_unlocked(&self) -> Result<Vec<PageDocument>, EngineError> {
+        self.page_contents()?
+            .into_iter()
+            .map(|(id, content)| parse_page(id, content))
+            .collect()
+    }
+
+    pub(crate) fn page_contents(&self) -> Result<BTreeMap<PageId, String>, EngineError> {
         let mut names = Vec::new();
         for entry in Dir::read_from(&self.pages).map_err(std::io::Error::from)? {
             let entry = entry.map_err(std::io::Error::from)?;
@@ -109,7 +124,7 @@ impl Wiki {
             }
         }
         names.sort();
-        let mut documents = Vec::new();
+        let mut documents = BTreeMap::new();
         let mut total = 0usize;
         for name in names {
             let id = PageId::new(name.trim_end_matches(".md")).map_err(source_error)?;
@@ -120,13 +135,13 @@ impl Wiki {
                     "page reconciliation exceeds the 512 MiB in-memory text budget",
                 ));
             }
-            documents.push(parse_page(id, content)?);
+            documents.insert(id, content);
         }
         Ok(documents)
     }
 }
 
-fn parse_page(page_id: PageId, content: String) -> Result<PageDocument, EngineError> {
+pub(crate) fn parse_page(page_id: PageId, content: String) -> Result<PageDocument, EngineError> {
     let (metadata, body_start) = if content.starts_with("---\n") || content.starts_with("---\r\n") {
         let first_end = content.find('\n').expect("prefix has newline") + 1;
         let mut boundary = None;

@@ -2,7 +2,8 @@
 
 Status: M1 is implemented. [SOURCES](SOURCES.md) describes immutable ingestion;
 [RETRIEVAL](RETRIEVAL.md) describes URL imports, page relationships and indexing.
-M2–M4 remain planned unless marked complete in [PLAN](PLAN.md).
+M2 publication/recovery is implemented; see [PUBLICATION](PUBLICATION.md).
+M3–M4 remain planned unless marked complete in [PLAN](PLAN.md).
 
 ## Ownership and dependency direction
 
@@ -27,7 +28,7 @@ engine; the example demonstrates harness composition separately.
 
 The domain crate currently exports validated PageId, PageSnapshot, WikiConfig and
 version/read-limit constants. Source IDs, content hashes, source records, document nodes, parsed documents and
-source locators/passages are also implemented. Changeset types remain planned.
+source locators/passages are also implemented. Draft, changeset, operation and snapshot types are implemented.
 
 ## Implemented storage and read semantics
 
@@ -130,7 +131,7 @@ rather than inventing a result. Drafts are excluded from published search.
 Queries freeze a reconciled content manifest. Retrieval verifies returned
 revisions and serves retained immutable page snapshots for that query. Reconcile
 ordinary external edits before freezing a new manifest. If a stable snapshot
-cannot be obtained, report a conflict. This is an M2 requirement, not an S0 claim.
+cannot be obtained, report a conflict. M2 retains immutable manifests and page objects; M3 adds query-session composition.
 
 The host uses Nausicaa for model/tool iterations. It assembles supported claims
 and source citations, flags contradictions and distinguishes source evidence
@@ -138,7 +139,7 @@ from synthesis. Validate IDs, ranges and quote matching deterministically; a
 passing validator does not prove that an inference is correct. Insufficient
 evidence produces an incomplete answer. Filing an answer creates a draft only.
 
-## Planned publication and recovery (M2)
+## Publication and recovery (M2)
 
 One cross-process writer lock covers reconciliation and publication in a wiki.
 Prepare an immutable changeset digest and expected base manifest; validate

@@ -8,13 +8,13 @@ Ohmu integrates with [Nausicaa](https://github.com/Ceskoslov/Nausicaa) across se
 
 ## Current status
 
-**M1 is implemented: ingestion, page relationships and vectorless full-text retrieval.** M2–M4 are being delivered in stages.
+**M1–M2 are implemented: vectorless retrieval, reviewable drafts, publication, recovery and backups.** M3–M4 are being delivered in stages.
 
 | Implemented | Later stages |
 | --- | --- |
-| Local Markdown/HTML/PDF and public HTTP(S) imports | Draft generation, reviewed publication and recovery |
+| Local Markdown/HTML/PDF and public HTTP(S) imports | Model-powered draft generation |
 | Immutable sources, page/byte evidence and catalog rebuild | Model-powered synthesis and cited answers |
-| Page frontmatter, aliases, backlinks and health checks | Backup/restore and scale evaluation |
+| Page frontmatter, aliases, backlinks and health checks | Scale evaluation |
 | Jieba + Tantivy BM25, incremental indexing and stale checks | Packaging and compatibility matrix |
 | Nausicaa page, search, neighbor and source-read tools | OCR and multi-user services are outside v1 |
 
@@ -57,7 +57,7 @@ cargo run -p ohmu-cli -- search Rust --collection sources --wiki /tmp/ohmu-demo 
 cargo run -p ohmu-cli -- lint --wiki /tmp/ohmu-demo --json
 ```
 
-External edits and newly imported sources invalidate the previous index; run `reindex` again to update it. `read --offset 0 --limit 16384` reads large pages in bounded slices. `lint` and `neighbors` always inspect current Markdown. Model generation and publication arrive in later stages.
+External edits and newly imported sources invalidate the previous index; run `reindex` again to update it. `read --offset 0 --limit 16384` reads large pages in bounded slices. `lint` and `neighbors` always inspect current Markdown. Model generation arrives in M3; publication is explicitly reviewed.
 
 ## Design and integration
 
@@ -83,3 +83,10 @@ python3 scripts/check_local_host.py --nausicaa ../Nausicaa
 Run `cargo fetch --locked` first on a fresh checkout. The local override check creates a temporary consumer and changes neither Nausicaa nor this repository's lockfile.
 
 Licensed under either MIT or Apache-2.0, at your option.
+
+Review publication with `stage proposal.json`, `drafts`, `draft <digest>` and
+`diff <digest>`, then explicitly `apply <digest>`. Use `operations` and
+`recover <operation> --strategy finish|rollback` after interruption. `snapshot`,
+`snapshot-read`, `backup <new-directory>` and `restore <backup> <new-directory>`
+retain knowledge and durable workflow state. See [publication](docs/PUBLICATION.md)
+for the proposal schema, evidence, recovery and filesystem limits.
