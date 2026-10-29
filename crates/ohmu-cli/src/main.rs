@@ -2,7 +2,9 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
-use ohmu_core::{API_VERSION, ContentHash, InvalidDigest, InvalidPageId, PageId, SourceId};
+use ohmu_core::{
+    API_VERSION, ContentHash, InvalidDigest, InvalidPageId, PageId, SearchCollection, SourceId,
+};
 use ohmu_engine::{EngineError, Wiki};
 use serde_json::{Value, json};
 use thiserror::Error;
@@ -33,6 +35,12 @@ enum Command {
     /// Read one regular UTF-8 page by ID with its exact SHA-256 revision.
     Read {
         page_id: String,
+        #[arg(long)]
+        offset: Option<usize>,
+        #[arg(long)]
+        limit: Option<usize>,
+        #[arg(long)]
+        revision: Option<String>,
         #[arg(long, default_value = ".")]
         wiki: PathBuf,
     },
@@ -44,6 +52,10 @@ enum Command {
     },
     /// List immutable source revisions from the derived catalog.
     Sources {
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
+        #[arg(long, default_value_t = 100)]
+        limit: usize,
         #[arg(long, default_value = ".")]
         wiki: PathBuf,
     },
@@ -52,6 +64,8 @@ enum Command {
         source_id: String,
         #[arg(long)]
         revision: String,
+        #[arg(long)]
+        artifact: Option<String>,
         #[arg(long, default_value_t = 0)]
         offset: usize,
         #[arg(long, default_value_t = 16384)]
@@ -61,6 +75,52 @@ enum Command {
     },
     /// Rebuild the source catalog from validated provenance sidecars.
     CatalogRebuild {
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    /// Explicitly fetch and import one public HTTP(S) source.
+    IngestUrl {
+        url: String,
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    /// Reconcile page metadata and inspect orphan, dangling and ambiguous links.
+    Lint {
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    /// Read current incoming/outgoing links for a page ID.
+    Neighbors {
+        page_id: String,
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    /// Navigate a pinned source's document tree.
+    SourceNeighbors {
+        source_id: String,
+        #[arg(long)]
+        revision: String,
+        #[arg(long)]
+        artifact: Option<String>,
+        #[arg(long, default_value = "root")]
+        node: String,
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    /// Incrementally reconcile and index current Wiki sections and source revisions.
+    Reindex {
+        #[arg(long)]
+        rebuild: bool,
+        #[arg(long, default_value = ".")]
+        wiki: PathBuf,
+    },
+    /// Literal BM25 search, using the same Chinese/English tokenizer as indexing.
+    Search {
+        query: String,
+        #[arg(long, default_value = "wiki", value_parser = ["wiki", "sources", "all"])]
+        collection: String,
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
         #[arg(long, default_value = ".")]
         wiki: PathBuf,
     },
@@ -74,8 +134,6 @@ enum CliError {
     PageId(#[from] InvalidPageId),
     #[error(transparent)]
     Digest(#[from] InvalidDigest),
-    #[error("source revision not found; use `sources` or rebuild the catalog")]
-    MissingSource,
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 }
@@ -102,8 +160,28 @@ fn run(command: Command) -> Result<(&'static str, Value, String), CliError> {
             );
             Ok(("doctor", serde_json::to_value(report)?, text))
         }
-        Command::Read { wiki, page_id } => {
-            let snapshot = Wiki::open(wiki)?.read_page(&PageId::new(page_id)?)?;
+        Command::Read {
+            wiki,
+            page_id,
+            offset,
+            limit,
+            revision,
+        } => {
+            let wiki = Wiki::open(wiki)?;
+            let id = PageId::new(page_id)?;
+            if offset.is_some() || limit.is_some() {
+                let passage =
+                    wiki.read_page_passage(&id, offset.unwrap_or(0), limit.unwrap_or(16384))?;
+                if revision.is_some_and(|revision| revision != passage.revision) {
+                    return Err(EngineError::Conflict.into());
+                }
+                let text = passage.content.clone();
+                return Ok(("read", serde_json::to_value(passage)?, text));
+            }
+            let snapshot = wiki.read_page(&id)?;
+            if revision.is_some_and(|revision| revision != snapshot.revision) {
+                return Err(EngineError::Conflict.into());
+            }
             let text = format!(
                 "{} @ {}\n\n{}",
                 snapshot.page_id, snapshot.revision, snapshot.content
@@ -122,8 +200,19 @@ fn run(command: Command) -> Result<(&'static str, Value, String), CliError> {
             }
             Ok(("ingest", serde_json::to_value(report)?, text))
         }
-        Command::Sources { wiki } => {
+        Command::Sources {
+            wiki,
+            offset,
+            limit,
+        } => {
+            if !(1..=1000).contains(&limit) {
+                return Err(
+                    EngineError::Source("source-list limit must be 1..=1000".into()).into(),
+                );
+            }
             let records = Wiki::open(wiki)?.sources()?;
+            let total = records.len();
+            let records: Vec<_> = records.into_iter().skip(offset).take(limit).collect();
             let text = records
                 .iter()
                 .map(|record| {
@@ -134,11 +223,16 @@ fn run(command: Command) -> Result<(&'static str, Value, String), CliError> {
                 })
                 .collect::<Vec<_>>()
                 .join("\n");
-            Ok(("sources", json!({"sources": records}), text))
+            Ok((
+                "sources",
+                json!({"sources": records,"total":total,"next_offset":(offset.saturating_add(limit)<total).then_some(offset.saturating_add(limit))}),
+                text,
+            ))
         }
         Command::Source {
             source_id,
             revision,
+            artifact,
             offset,
             limit,
             wiki,
@@ -146,11 +240,8 @@ fn run(command: Command) -> Result<(&'static str, Value, String), CliError> {
             let wiki = Wiki::open(wiki)?;
             let source_id = SourceId::new(source_id)?;
             let revision = ContentHash::new(revision)?;
-            let record = wiki
-                .sources()?
-                .into_iter()
-                .find(|record| record.source_id == source_id && record.revision == revision)
-                .ok_or(CliError::MissingSource)?;
+            let artifact = artifact.map(ContentHash::new).transpose()?;
+            let record = wiki.find_source(&source_id, &revision, artifact.as_ref())?;
             let passage = wiki.read_source(&record, offset, limit)?;
             let text = passage.content.clone();
             Ok(("source", serde_json::to_value(passage)?, text))
@@ -162,6 +253,76 @@ fn run(command: Command) -> Result<(&'static str, Value, String), CliError> {
                 json!({"source_revisions": count}),
                 format!("Rebuilt catalog: {count} source revisions"),
             ))
+        }
+        Command::IngestUrl { url, wiki } => {
+            let report = Wiki::open(wiki)?.ingest_url(&url)?;
+            let text = format!("{} @ {}", report.record.source_id, report.record.revision);
+            Ok(("ingest-url", serde_json::to_value(report)?, text))
+        }
+        Command::Lint { wiki } => {
+            let report = Wiki::open(wiki)?.reconcile_pages()?;
+            let text = format!(
+                "{} pages; {} orphan pages; {} dangling links; {} ambiguous references",
+                report.pages.len(),
+                report.orphan_pages.len(),
+                report.dangling_links.len(),
+                report.ambiguous_references.len()
+            );
+            Ok(("lint", serde_json::to_value(report)?, text))
+        }
+        Command::Neighbors { page_id, wiki } => {
+            let report = Wiki::open(wiki)?.page_neighbors(&PageId::new(page_id)?)?;
+            let text = serde_json::to_string_pretty(&report)?;
+            Ok(("neighbors", serde_json::to_value(report)?, text))
+        }
+        Command::SourceNeighbors {
+            source_id,
+            revision,
+            artifact,
+            node,
+            wiki,
+        } => {
+            let wiki = Wiki::open(wiki)?;
+            let artifact = artifact.map(ContentHash::new).transpose()?;
+            let record = wiki.find_source(
+                &SourceId::new(source_id)?,
+                &ContentHash::new(revision)?,
+                artifact.as_ref(),
+            )?;
+            let report = wiki.source_neighbors(&record, &node)?;
+            let text = serde_json::to_string_pretty(&report)?;
+            Ok(("source-neighbors", serde_json::to_value(report)?, text))
+        }
+        Command::Reindex { rebuild, wiki } => {
+            let report = Wiki::open(wiki)?.reindex(rebuild)?;
+            let text = format!(
+                "{} sections; {} updated entities; {} removed; {}",
+                report.indexed_sections,
+                report.updated_entities,
+                report.removed_entities,
+                report.generation
+            );
+            Ok(("reindex", serde_json::to_value(report)?, text))
+        }
+        Command::Search {
+            query,
+            collection,
+            limit,
+            wiki,
+        } => {
+            let collection = match collection.as_str() {
+                "wiki" => SearchCollection::Wiki,
+                "sources" => SearchCollection::Sources,
+                _ => SearchCollection::All,
+            };
+            let report = Wiki::open(wiki)?.search(&query, collection, limit)?;
+            let text = report
+                .hits
+                .iter()
+                .map(|hit| format!("{} — {}\n{}", hit.title, hit.heading, hit.excerpt))
+                .collect::<Vec<_>>()
+                .join("\n\n");
+            Ok(("search", serde_json::to_value(report)?, text))
         }
     }
 }

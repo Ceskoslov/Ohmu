@@ -44,7 +44,7 @@ Use the host's existing executor when composing other tool implementations.
 
 ## Exact-action read behavior
 
-The only S0 tool is:
+The original S0 page tool input remains supported:
 
 ```json
 {"page_id":"welcome"}
@@ -154,3 +154,14 @@ Ohmu owns its future schema migrations; this adapter does not reinterpret old
 Nausicaa events. Unknown publication receipts will be reconciled by durable Ohmu
 operation IDs. Without a known result, the host reports uncertainty rather than
 automatically retrying a write.
+
+## M1 query tools
+
+`register_query_tools` adds `ohmu_search`, `ohmu_neighbors` and
+`ohmu_read_source`; use `query_policy` to explicitly grant them in a dedicated
+Wiki runtime. The original read-only helper does not grant these new tools.
+`ohmu_read` supports optional UTF-8 byte pagination without changing its original
+whole-page output shape. Query tools freeze normalized inputs and result digests,
+reject changed scopes/content, and use existing durable receipts. Search never
+rebuilds an index as a side effect. See [RETRIEVAL](RETRIEVAL.md) for schemas,
+limits, collection defaults and the incremental index contract.

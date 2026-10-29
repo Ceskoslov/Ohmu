@@ -68,7 +68,7 @@ commit only after checks, without a remote or a Nausicaa source change.
 
 ## M1 — sources, deterministic structure and lexical retrieval
 
-**Status: in progress. Depends on S0.**
+**Status: implemented. Depends on S0.**
 
 - Completed: validated source IDs/revisions/locators, deterministic Markdown
   heading trees, immutable raw/parser artifacts and provenance sidecars.
@@ -76,8 +76,10 @@ commit only after checks, without a remote or a Nausicaa source change.
   UTF-8 source pagination and catalog rebuild. See [SOURCES](SOURCES.md).
 - Completed: local HTML article extraction/heading trees and PDF physical-page
   text extraction, normalized artifact provenance and parser diagnostics.
-- Remaining: URL fetching, page reconciliation/relationships, Tantivy/Jieba
-  indexing, query tools and the complete M1 exit matrix.
+- Completed: public HTTP(S) imports with per-hop destination validation, page
+  metadata/aliases/links, Jieba/Tantivy BM25, incremental indexing, generation
+  checks, pagination and explicitly granted Nausicaa query tools.
+- Evidence: 45 tests cover the M1 exit matrix; see [RETRIEVAL](RETRIEVAL.md).
 
 1. Add versioned SourceId/SourceRevision, SourceLocator and DocumentNode domain
    types. Track source bytes, parser version, text artifact hash and physical pages.

@@ -1,8 +1,8 @@
 # Architecture
 
-Status: S0 plus M1 local Markdown/HTML/PDF source storage/catalog are implemented.
-[SOURCES](SOURCES.md) describes the implemented addition. Other M1–M4 behaviors
-remain planned unless explicitly marked complete in PLAN. [PLAN](PLAN.md) defines stage exits; [ADR](ADR.md) records decisions.
+Status: M1 is implemented. [SOURCES](SOURCES.md) describes immutable ingestion;
+[RETRIEVAL](RETRIEVAL.md) describes URL imports, page relationships and indexing.
+M2–M4 remain planned unless marked complete in [PLAN](PLAN.md).
 
 ## Ownership and dependency direction
 
@@ -16,7 +16,7 @@ flowchart TD
     Engine --> Core[ohmu-core]
     Adapter --> Core
     Engine -. M1 .-> Search[Tantivy: disposable index]
-    Engine -. M1/M2 .-> Metadata[SQLite: metadata and durable workflow journal]
+    Engine -. M1/M2 .-> Metadata[SQLite: derived catalogs; durable workflow journal planned in M2]
     Engine --> Files[Markdown: content authority]
 ```
 
@@ -81,8 +81,8 @@ writes. It is not a content validator, writability test, or permission audit.
   a half-open UTF-8 byte range in a versioned normalized-text artifact. Quotes are
   checked against those bytes. Original PDF bytes remain available for inspection.
 - Wiki pages keep a stable ID in frontmatter, a human title, explicit aliases,
-  source references and Markdown links. Page ingestion does not yet validate frontmatter;
-  M1 must reject ID/path disagreement and duplicate IDs during reconciliation.
+  source references and Markdown links. Reconciliation validates frontmatter, rejects duplicate keys and ID/path
+  disagreement, and reports ambiguous aliases without merging pages.
 - Links and entity relationships use SQLite adjacency tables with incoming and
   outgoing lookup; no graph database. An alias never silently merges entities.
 - Changesets contain full replacement page bytes, expected prior hashes (or

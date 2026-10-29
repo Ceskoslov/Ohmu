@@ -117,10 +117,20 @@ fn pdf_passages_are_pinned_to_one_physical_page_and_catalog_rebuild_survives_inp
         wiki.ingest_file(&copy).unwrap().record.artifact,
         record.artifact
     );
+    write_pdf(&input, &["Revised first page.", "Revised second page."]);
+    let revised = wiki.ingest_file(&input).unwrap().record;
+    assert_eq!(revised.source_id, record.source_id);
+    assert_ne!(revised.revision, record.revision);
+    assert!(
+        wiki.source_document(&revised)
+            .unwrap()
+            .text
+            .contains("Revised first page.")
+    );
     fs::remove_file(input).unwrap();
     fs::remove_file(copy).unwrap();
     fs::remove_file(root.join(".ohmu/catalog.sqlite")).unwrap();
-    assert_eq!(wiki.rebuild_source_catalog().unwrap(), 2);
+    assert_eq!(wiki.rebuild_source_catalog().unwrap(), 3);
     assert_eq!(wiki.source_document(&record).unwrap(), document);
 }
 

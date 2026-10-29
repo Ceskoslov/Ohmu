@@ -151,3 +151,19 @@ README.md defaults to English; README.zh-CN.md provides Simplified Chinese with 
 switch links. All planning, architecture, decisions, integration and contributor
 documentation defaults to English. Keep commands and implementation status aligned
 between README versions. No bilingual documentation generator or website is needed.
+
+## ADR-010 — Concrete M1 formats and generation checks
+
+Use serde-saphyr 2.0.0 for bounded YAML frontmatter, with includes disabled and
+anchors/aliases rejected. Store resolved edges and page metadata in derived
+SQLite v2 tables; ordinary live reads use authoritative Markdown. Duplicate or
+ambiguous names never silently merge identities. Public HTTP imports disable
+proxy/retry behavior and pin validated per-hop DNS results.
+
+Use Tantivy 0.27.0 and Jieba 0.11.0 with the same custom tokenizer for index and
+query. Sort overlapping Chinese search tokens by original position. Reindex
+updates only changed entities; index-generation hashes and committed operation
+stamps reject stale/cross-store states, including empty search results. Heavy
+work uses a 32 MB single-threaded Tantivy writer and bounded page collection.
+Search has no implicit write/reindex authority. Complete details and limits are
+in [RETRIEVAL](RETRIEVAL.md).

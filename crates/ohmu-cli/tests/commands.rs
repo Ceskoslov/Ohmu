@@ -37,7 +37,7 @@ fn init_doctor_and_read_work_without_credentials() {
 }
 
 #[test]
-fn runtime_errors_are_json_on_stderr_and_planned_commands_are_not_exposed() {
+fn runtime_errors_are_json_on_stderr_and_unknown_commands_are_rejected() {
     let temp = tempdir().unwrap();
     let root = temp.path().join("missing");
     let output = ohmu(&["--json", "doctor", "--wiki", root.to_str().unwrap()]);
@@ -45,7 +45,10 @@ fn runtime_errors_are_json_on_stderr_and_planned_commands_are_not_exposed() {
     assert!(output.stdout.is_empty());
     let value: Value = serde_json::from_slice(&output.stderr).unwrap();
     assert_eq!(value["error"]["code"], "operation_failed");
-    assert_eq!(ohmu(&["search", "anything"]).status.code(), Some(2));
+    assert_eq!(
+        ohmu(&["unknown-command", "anything"]).status.code(),
+        Some(2)
+    );
 }
 
 #[test]
@@ -144,4 +147,53 @@ fn html_cli_ingestion_exposes_parser_diagnostics_and_normalized_passages() {
             .contains("HTMLRESEARCH")
     );
     assert!(passage["result"]["locator"]["page"].is_null());
+}
+
+#[test]
+fn m1_cli_reconciles_links_indexes_searches_and_detects_external_changes() {
+    let temp = tempdir().unwrap();
+    let root = temp.path().join("wiki");
+    let wiki = root.to_str().unwrap();
+    assert!(ohmu(&["init", wiki]).status.success());
+    std::fs::write(root.join("pages/research.md"),"---\nid: research\ntitle: Research\naliases: [科研]\n---\n# Research\n中文知识库 [[welcome]]\n").unwrap();
+    for arguments in [
+        vec!["lint", "--wiki", wiki],
+        vec!["neighbors", "welcome", "--wiki", wiki],
+        vec!["reindex", "--wiki", wiki],
+        vec!["search", "科研", "--wiki", wiki],
+        vec![
+            "read", "research", "--offset", "0", "--limit", "20", "--wiki", wiki,
+        ],
+    ] {
+        let mut arguments = arguments;
+        arguments.push("--json");
+        let output = ohmu(&arguments);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let _: Value = serde_json::from_slice(&output.stdout).unwrap();
+    }
+    std::fs::write(root.join("pages/research.md"), "# Updated\nNew marker").unwrap();
+    assert_eq!(
+        ohmu(&["search", "Updated", "--wiki", wiki]).status.code(),
+        Some(1)
+    );
+    assert!(
+        ohmu(&["reindex", "--rebuild", "--wiki", wiki])
+            .status
+            .success()
+    );
+    assert!(
+        ohmu(&["search", "Updated", "--wiki", wiki])
+            .status
+            .success()
+    );
+    assert_eq!(
+        ohmu(&["ingest-url", "http://127.0.0.1:1/", "--wiki", wiki])
+            .status
+            .code(),
+        Some(1)
+    );
 }

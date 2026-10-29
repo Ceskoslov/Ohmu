@@ -8,15 +8,15 @@ Ohmu integrates with [Nausicaa](https://github.com/Ceskoslov/Nausicaa) across se
 
 ## Current status
 
-**S0 and M1 local Markdown/HTML/text-PDF source ingestion and catalog are implemented.** The full product is being delivered in stages.
+**M1 is implemented: ingestion, page relationships and vectorless full-text retrieval.** M2–M4 are being delivered in stages.
 
-| Implemented | Planned, not implemented |
+| Implemented | Later stages |
 | --- | --- |
-| Wiki initialization, configuration and layout diagnostics | URL fetching |
-| Bounded Markdown reads with SHA-256 revisions | Chinese tokenization, BM25 search, tree and link navigation |
-| Markdown/HTML/PDF imports, immutable revisions, catalog rebuild and UTF-8 pagination | Full-text indexing and page relation maintenance |
-| Nausicaa `ohmu_read` tool | LLM drafts, multi-page review/publication and recovery |
-| Credential-free integration example and durable receipt checks | Source-cited question answering and scale evaluation |
+| Local Markdown/HTML/PDF and public HTTP(S) imports | Draft generation, reviewed publication and recovery |
+| Immutable sources, page/byte evidence and catalog rebuild | Model-powered synthesis and cited answers |
+| Page frontmatter, aliases, backlinks and health checks | Backup/restore and scale evaluation |
+| Jieba + Tantivy BM25, incremental indexing and stale checks | Packaging and compatibility matrix |
+| Nausicaa page, search, neighbor and source-read tools | OCR and multi-user services are outside v1 |
 
 ## Quick start
 
@@ -46,7 +46,18 @@ cargo run -p ohmu-cli -- sources --wiki /tmp/ohmu-demo --json
 cargo run -p ohmu-cli -- catalog-rebuild --wiki /tmp/ohmu-demo
 ```
 
-`ingest` returns the source ID, raw revision and parser artifact hash. Use `source <id> --revision <hash> --wiki <directory>` to read a pinned revision, with `--offset` and `--limit` byte pagination. `catalog-rebuild` restores SQLite metadata from provenance manifests. PDF passages retain physical page numbers and never cross a page boundary; HTML locators address the extracted Markdown. Scanned documents require OCR. URL fetching and full-text search are not implemented yet.
+`ingest` returns the source ID, raw revision and parser artifact hash. Use `source <id> --revision <hash> --wiki <directory>` to read a pinned revision, with `--offset` and `--limit` byte pagination. `catalog-rebuild` restores SQLite metadata from provenance manifests. PDF passages retain physical page numbers and never cross a page boundary; HTML locators address the extracted Markdown. Scanned documents require OCR. Explicit `ingest-url` imports public HTTP(S) resources; private, local and reserved destinations are refused.
+
+Build or incrementally update the index, then search the published Wiki; use `--collection sources` for original evidence:
+
+```sh
+cargo run -p ohmu-cli -- reindex --wiki /tmp/ohmu-demo
+cargo run -p ohmu-cli -- search Ohmu --wiki /tmp/ohmu-demo --json
+cargo run -p ohmu-cli -- search Rust --collection sources --wiki /tmp/ohmu-demo --json
+cargo run -p ohmu-cli -- lint --wiki /tmp/ohmu-demo --json
+```
+
+External edits and newly imported sources invalidate the previous index; run `reindex` again to update it. `read --offset 0 --limit 16384` reads large pages in bounded slices. `lint` and `neighbors` always inspect current Markdown. Model generation and publication arrive in later stages.
 
 ## Design and integration
 

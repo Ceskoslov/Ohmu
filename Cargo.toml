@@ -29,6 +29,11 @@ dom_smoothie = "=0.18.2"
 dom_query = { version = "=0.28.0", features = ["markdown"] }
 pdf-extract = "=0.12.1"
 lopdf = { version = "=0.42.0", default-features = false }
+reqwest = { version = "0.12.28", default-features = false, features = ["blocking", "rustls-tls"] }
+tantivy = "=0.27.0"
+jieba-rs = "=0.11.0"
+serde-saphyr = { version = "=2.0.0", default-features = false, features = ["deserialize"] }
+percent-encoding = "2.3"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

@@ -19,6 +19,11 @@ dom_smoothie.workspace = true
 dom_query.workspace = true
 pdf-extract.workspace = true
 lopdf.workspace = true
+reqwest.workspace = true
+tantivy.workspace = true
+jieba-rs.workspace = true
+serde-saphyr.workspace = true
+percent-encoding.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 rustix.workspace = true

@@ -22,7 +22,7 @@ use crate::parsers::{MAX_NODES, ParserKind};
 const MAX_MANIFEST_BYTES: usize = 64 * 1024;
 // Text plus JSON escaping and a bounded number of structural nodes.
 const MAX_ARTIFACT_BYTES: usize = 8 * MAX_TEXT_BYTES;
-const CATALOG_VERSION: u32 = 1;
+const CATALOG_VERSION: u32 = 2;
 static TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Debug, Serialize)]
@@ -45,7 +45,7 @@ struct ParseCache {
     artifact: ContentHash,
 }
 
-struct SourceStore {
+pub(crate) struct SourceStore {
     _lock: File,
     raw: File,
     blobs: File,
@@ -74,7 +74,6 @@ impl Wiki {
     pub fn ingest_file(&self, path: impl AsRef<Path>) -> Result<IngestReport, EngineError> {
         let path = path.as_ref();
         let kind = ParserKind::for_path(path)?;
-        let parser = kind.identity();
         let parent = open_directory(
             path.parent()
                 .filter(|p| !p.as_os_str().is_empty())
@@ -92,7 +91,23 @@ impl Wiki {
             .to_str()
             .ok_or_else(|| source_error("source paths must be UTF-8"))?;
         let origin = format!("file:{canonical}");
-        let revision = digest(&bytes)?;
+        self.ingest_bytes(&origin, &bytes, kind, None)
+    }
+
+    pub(crate) fn ingest_bytes(
+        &self,
+        origin: &str,
+        bytes: &[u8],
+        kind: ParserKind,
+        resolved_url: Option<String>,
+    ) -> Result<IngestReport, EngineError> {
+        if bytes.len() > MAX_SOURCE_BYTES {
+            return Err(EngineError::TooLarge {
+                maximum: MAX_SOURCE_BYTES,
+            });
+        }
+        let parser = kind.identity();
+        let revision = digest(bytes)?;
         let source_id = SourceId::new(format!("src-{}", digest(origin.as_bytes())?.hex()))
             .map_err(source_error)?;
         let store = self.source_store()?;
@@ -148,10 +163,10 @@ impl Wiki {
                 serde_json::from_slice(&artifact)?
             };
             validate_document(&parsed, parser)?;
-            kind.validate_raw(&bytes, &parsed)?;
+            kind.validate_raw(bytes, &parsed)?;
             parsed
         } else {
-            kind.parse(&bytes)?
+            kind.parse(bytes)?
         };
         validate_document(&document, parser)?;
         let artifact_bytes = serde_json::to_vec(&document)?;
@@ -164,7 +179,7 @@ impl Wiki {
         let record = SourceRecord {
             schema_version: SOURCE_FORMAT_VERSION,
             source_id,
-            origin,
+            origin: origin.to_owned(),
             revision,
             artifact,
             parser: parser.into(),
@@ -173,6 +188,7 @@ impl Wiki {
                 .duration_since(UNIX_EPOCH)
                 .map_err(source_error)?
                 .as_millis(),
+            resolved_url,
         };
         let record_bytes = serde_json::to_vec(&record)?;
         if record_bytes.len() > MAX_MANIFEST_BYTES {
@@ -183,7 +199,7 @@ impl Wiki {
 
         // Validate/open the catalog before committing authoritative source files.
         let mut catalog = self.catalog(true)?;
-        persist_immutable(&store.blobs, record.revision.hex(), &bytes)?;
+        persist_immutable(&store.blobs, record.revision.hex(), bytes)?;
         persist_immutable(
             &store.artifacts,
             &format!("{}.json", record.artifact.hex()),
@@ -233,6 +249,90 @@ impl Wiki {
             records.push(record);
         }
         Ok(records)
+    }
+
+    /// Read authoritative provenance manifests without depending on derived SQLite state.
+    pub(crate) fn source_records(&self) -> Result<Vec<SourceRecord>, EngineError> {
+        let raw = open_child_directory(&self.directory, "raw")?;
+        let records = match open_child_directory(&raw, "records") {
+            Ok(records) => records,
+            Err(EngineError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(Vec::new());
+            }
+            Err(error) => return Err(error),
+        };
+        let mut result = Vec::new();
+        for entry in Dir::read_from(&records).map_err(std::io::Error::from)? {
+            let entry = entry.map_err(std::io::Error::from)?;
+            let name = entry.file_name().to_str().map_err(source_error)?;
+            if !name.ends_with(".json") {
+                continue;
+            }
+            let record: SourceRecord =
+                serde_json::from_slice(&read_file(&records, name, MAX_MANIFEST_BYTES)?)?;
+            validate_record(&record)?;
+            if manifest_name(&record.source_id, &record.revision, &record.parser)? != name {
+                return Err(source_error("source manifest identity mismatch"));
+            }
+            result.push(record);
+        }
+        result.sort_by(|a, b| {
+            (&a.source_id, &a.revision, &a.parser).cmp(&(&b.source_id, &b.revision, &b.parser))
+        });
+        Ok(result)
+    }
+
+    pub fn find_source(
+        &self,
+        id: &SourceId,
+        revision: &ContentHash,
+        artifact: Option<&ContentHash>,
+    ) -> Result<SourceRecord, EngineError> {
+        let records: Vec<_> = self
+            .source_records()?
+            .into_iter()
+            .filter(|record| {
+                &record.source_id == id
+                    && &record.revision == revision
+                    && artifact.is_none_or(|artifact| artifact == &record.artifact)
+            })
+            .collect();
+        if records.len() != 1 {
+            return Err(source_error(
+                "source revision absent or ambiguous; select an exact artifact",
+            ));
+        }
+        Ok(records.into_iter().next().expect("exactly one source"))
+    }
+
+    pub fn source_neighbors(
+        &self,
+        record: &SourceRecord,
+        node_id: &str,
+    ) -> Result<ohmu_core::SourceNeighbors, EngineError> {
+        let document = self.source_document(record)?;
+        let node = document
+            .nodes
+            .iter()
+            .find(|node| node.id == node_id)
+            .cloned()
+            .ok_or_else(|| source_error("source node not found"))?;
+        Ok(ohmu_core::SourceNeighbors {
+            api_version: API_VERSION,
+            source: record.clone(),
+            parent: document
+                .nodes
+                .iter()
+                .find(|parent| Some(&parent.id) == node.parent.as_ref())
+                .cloned(),
+            children: document
+                .nodes
+                .iter()
+                .filter(|child| child.parent.as_deref() == Some(node_id))
+                .cloned()
+                .collect(),
+            node,
+        })
     }
 
     /// Rebuild only the source catalog. It never deletes drafts/recovery data.
@@ -341,7 +441,7 @@ impl Wiki {
         load_document(&store.blobs, &store.artifacts, record)
     }
 
-    fn source_store(&self) -> Result<SourceStore, EngineError> {
+    pub(crate) fn source_store(&self) -> Result<SourceStore, EngineError> {
         let internal = open_child_directory(&self.directory, ".ohmu")?;
         let lock = File::from(
             openat(
@@ -378,7 +478,7 @@ impl Wiki {
         })
     }
 
-    fn catalog(&self, writable: bool) -> Result<Connection, EngineError> {
+    pub(crate) fn catalog(&self, writable: bool) -> Result<Connection, EngineError> {
         // SQLite owns its WAL/SHM path handling. The internal directory is
         // trusted host storage, not a sandbox against concurrent directory swaps.
         open_child_directory(&self.directory, ".ohmu")?;
@@ -406,7 +506,10 @@ impl Wiki {
             if version == 0 {
                 catalog.execute_batch("BEGIN IMMEDIATE; CREATE TABLE sources (source_id TEXT NOT NULL, revision TEXT NOT NULL, parser TEXT NOT NULL, imported_at TEXT NOT NULL, record_json TEXT NOT NULL, PRIMARY KEY(source_id, revision, parser)); PRAGMA user_version=1; COMMIT;")?;
             }
-        } else if version != CATALOG_VERSION {
+            if version < 2 {
+                catalog.execute_batch("BEGIN IMMEDIATE; CREATE TABLE page_catalog (page_id TEXT PRIMARY KEY, metadata_json TEXT NOT NULL); CREATE TABLE page_links (from_id TEXT NOT NULL, reference TEXT NOT NULL, to_id TEXT); CREATE INDEX links_incoming ON page_links(to_id); CREATE TABLE index_state (singleton INTEGER PRIMARY KEY CHECK(singleton=1), state_json TEXT NOT NULL); PRAGMA user_version=2; COMMIT;")?;
+            }
+        } else if version == 0 {
             return Err(source_error("catalog is uninitialized; rebuild it first"));
         }
         Ok(catalog)
@@ -510,7 +613,7 @@ fn insert_record(catalog: &Connection, record: &SourceRecord) -> Result<(), Engi
     Ok(())
 }
 
-fn ensure_directory(parent: &File, name: &str) -> Result<File, EngineError> {
+pub(crate) fn ensure_directory(parent: &File, name: &str) -> Result<File, EngineError> {
     match mkdirat(parent, name, Mode::from_raw_mode(0o755)) {
         Ok(()) | Err(rustix::io::Errno::EXIST) => open_child_directory(parent, name),
         Err(error) => Err(std::io::Error::from(error).into()),

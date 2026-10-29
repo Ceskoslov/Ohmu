@@ -110,7 +110,7 @@ importing a source never writes into `pages/`.
 
 ## Catalog and recovery
 
-SQLite uses bundled rusqlite, `user_version = 1`, WAL, FULL synchronization,
+SQLite uses bundled rusqlite, `user_version = 2`, WAL, FULL synchronization,
 foreign-key enforcement and a two-second busy timeout. The sources table stores
 one row per origin/revision/parser. Catalog writes occur under the source writer
 lock; unsupported catalog versions fail without schema downgrade.
@@ -128,8 +128,10 @@ Do not delete arbitrary `.ohmu` files to rebuild. Future draft/recovery state is
 not disposable. SQLite's companion-file paths require a trusted internal directory;
 these checks are not an OS sandbox against hostile concurrent directory swaps.
 
-## Remaining M1 work
+## M1 completion
 
-URL fetching, page frontmatter/alias/link reconciliation,
-lexical indexing, incremental search, query tools and page-read pagination remain
-in [PLAN](PLAN.md). This increment does not claim the full M1 exit criteria.
+URL fetching, page relationships, lexical indexing, incremental search, query
+tools and page-read pagination are now implemented; see [RETRIEVAL](RETRIEVAL.md).
+Catalog v1 is migrated additively to v2 on a write; v1 source reads remain
+supported. Source/artifact format versions stay at 1, with an optional resolved
+URL on HTTP provenance records. Unknown future versions still fail closed.

@@ -109,6 +109,9 @@ pub struct SourceRecord {
     pub parser: String,
     pub byte_len: u64,
     pub imported_at_unix_ms: u128,
+    /// Final HTTP(S) URL after validated redirects. Absent for local sources.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resolved_url: Option<String>,
 }
 
 /// Evidence identity. Offsets refer to the immutable normalized artifact.

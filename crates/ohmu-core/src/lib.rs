@@ -7,6 +7,8 @@ use thiserror::Error;
 
 mod source;
 pub use source::*;
+mod knowledge;
+pub use knowledge::*;
 
 /// Current on-disk configuration format. Unknown versions are rejected.
 pub const CONFIG_VERSION: u32 = 1;

@@ -1,7 +1,8 @@
 //! Bounded, descriptor-relative reads for a local Markdown wiki.
 //!
 //! Supports Unix (Linux/WSL and macOS), immutable Markdown/HTML/PDF source ingestion and
-//! a rebuildable source catalog. Search and draft publication remain planned.
+//! a rebuildable source catalog, page relations and Chinese/English lexical search.
+//! Draft publication and model-powered synthesis are separate layers.
 
 #[cfg(not(unix))]
 compile_error!("Ohmu currently supports Unix only; use WSL on Windows.");
@@ -18,11 +19,14 @@ use thiserror::Error;
 
 mod sources;
 pub use sources::IngestReport;
+mod pages;
 mod parsers;
+mod search;
+mod web;
 
 const CONFIG_FILE: &str = "ohmu.toml";
 const MAX_CONFIG_BYTES: usize = 16 * 1024;
-const WELCOME: &str = "---\nid: welcome\ntitle: Welcome to Ohmu\n---\n\n# Welcome to Ohmu\n\nThis Markdown file is the content source of truth.\n\nEdit it in your editor, then read it through the CLI or Nausicaa.\n\nIngest, search, draft generation and publication are planned; see docs/PLAN.md in the Ohmu source repository.\n";
+const WELCOME: &str = "---\nid: welcome\ntitle: Welcome to Ohmu\n---\n\n# Welcome to Ohmu\n\nThis Markdown file is the content source of truth.\n\nEdit it in your editor, then read it through the CLI or Nausicaa.\n\nImport sources, run reindex, and search with the CLI. Model-generated changes will be staged for review before publication.\n";
 
 #[derive(Debug, Error)]
 pub enum EngineError {
@@ -48,6 +52,8 @@ pub enum EngineError {
     Database(#[from] rusqlite::Error),
     #[error("source serialization error: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("index is stale or unavailable; run reindex: {0}")]
+    StaleIndex(String),
     #[error("file is not UTF-8: {0}")]
     Utf8(#[from] std::string::FromUtf8Error),
 }
@@ -179,15 +185,12 @@ impl Wiki {
                 "read".into(),
                 "local_document_ingest".into(),
                 "source_catalog".into(),
-                "nausicaa_read_tool".into(),
-            ],
-            planned: vec![
                 "url_ingest".into(),
                 "search".into(),
-                "drafts".into(),
-                "apply".into(),
-                "ask".into(),
+                "page_relations".into(),
+                "nausicaa_read_tool".into(),
             ],
+            planned: vec!["drafts".into(), "apply".into(), "ask".into()],
         })
     }
 }

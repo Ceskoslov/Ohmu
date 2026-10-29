@@ -142,3 +142,24 @@ ran the durable Nausicaa example successfully. The pinned parser dependencies' l
 the HTML stack's MPL-2.0 components are recorded in ADR-005. These checks do not
 establish arbitrary-PDF layout accuracy, process isolation or hosted macOS CI
 success. URL fetching, OCR and full-text search remain unimplemented.
+
+## M1 completion
+
+Added public URL ingestion, live page reconciliation/links, Jieba + Tantivy BM25,
+incremental indexing, page/source tree navigation and explicit harness query
+capabilities. Forty-five tests cover the completed M1 behaviors, including local
+HTTP redirect fixtures, reserved/private address rejection, failed/oversized
+responses, Unicode aliases, external edits, added/removed entities, missing
+indexes, mismatching commit manifests, source integrity, derived-cache rebuild,
+v1→v2 catalog migration, paginated reads and denied fabricated query calls.
+The source-query → evidence-read harness flow closes durable receipts.
+
+Content/artifact/config versions remain 1. Catalog writes migrate v1 to v2
+additively; source reads still accept v1. SourceRecord adds optional resolved_url
+(default None), and new page/search/report types are additive. Rust struct-literal
+callers must supply the new optional source field. No Nausicaa durable event or
+trait format changes. New query tools require explicit grants.
+
+Passed: the locked workspace suite (45 tests), strict Clippy, formatting,
+rustdoc, documentation/README checks and local-host type compatibility. M4
+performance and live model quality are not inferred from these fixtures.
