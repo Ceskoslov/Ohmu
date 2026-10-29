@@ -13,6 +13,7 @@ ohmu-core = { path = "crates/ohmu-core" }
 ohmu-engine = { path = "crates/ohmu-engine" }
 ohmu-nausicaa = { path = "crates/ohmu-nausicaa" }
 agent-harness-core = { git = "https://github.com/Ceskoslov/Nausicaa.git", rev = "a2ab5b365cfb29bedd48d29b69951510ae5d1ef5" }
+agent-harness-provider-openai = { git = "https://github.com/Ceskoslov/Nausicaa.git", rev = "a2ab5b365cfb29bedd48d29b69951510ae5d1ef5", features = ["reqwest-transport"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"

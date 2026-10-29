@@ -24,6 +24,7 @@ mod pages;
 mod parsers;
 mod publication;
 mod search;
+pub use search::FrozenWiki;
 mod web;
 pub use publication::RecoveryMode;
 mod backup;
@@ -276,8 +277,9 @@ impl Wiki {
                 "apply_recover".into(),
                 "snapshots".into(),
                 "backup_restore".into(),
+                "cited_workflows".into(),
             ],
-            planned: vec!["ask".into()],
+            planned: vec!["scale_release_validation".into()],
         })
     }
 }

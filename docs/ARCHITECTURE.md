@@ -3,7 +3,8 @@
 Status: M1 is implemented. [SOURCES](SOURCES.md) describes immutable ingestion;
 [RETRIEVAL](RETRIEVAL.md) describes URL imports, page relationships and indexing.
 M2 publication/recovery is implemented; see [PUBLICATION](PUBLICATION.md).
-M3–M4 remain planned unless marked complete in [PLAN](PLAN.md).
+M3 workflow composition is implemented; see [WORKFLOWS](WORKFLOWS.md).
+M4 remains subject to measured validation in [PLAN](PLAN.md).
 
 ## Ownership and dependency direction
 
@@ -23,8 +24,8 @@ flowchart TD
 
 The engine never depends on the harness. The adapter does not own a model or an
 agent loop. A trusted composition host registers tools, grants capabilities,
-installs an executor and selects an event store. The CLI currently uses only the
-engine; the example demonstrates harness composition separately.
+installs an executor and selects an event store. The CLI composes the existing harness for ask/compile; other commands use the
+engine directly.
 
 The domain crate currently exports validated PageId, PageSnapshot, WikiConfig and
 version/read-limit constants. Source IDs, content hashes, source records, document nodes, parsed documents and
@@ -124,8 +125,7 @@ Start with 20 candidates, inspect at most three navigation hops and permit at
 most two query rewrites. Read bounded passages; never send the entire index or
 corpus as a prompt. Exact IDs and aliases provide deterministic entry points.
 LLM navigation operates on candidate node IDs, not arbitrary paths. Invalid node
-IDs are rejected. Explicit source searches can fall back to a bounded live scan
-when the index is unavailable; normal search reports a stale/unavailable index
+IDs are rejected. Normal search reports a stale/unavailable index
 rather than inventing a result. Drafts are excluded from published search.
 
 Queries freeze a reconciled content manifest. Retrieval verifies returned

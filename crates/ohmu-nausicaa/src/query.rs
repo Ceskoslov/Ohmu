@@ -1,7 +1,7 @@
 use super::{execution, invalid};
 use agent_harness_core::*;
 use ohmu_core::{ContentHash, PageId, SearchCollection, SourceId};
-use ohmu_engine::{Wiki, content_hash};
+use ohmu_engine::{FrozenWiki, Wiki, content_hash};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -24,10 +24,15 @@ impl QueryToolKind {
 pub struct QueryTool {
     wiki: Arc<Wiki>,
     kind: QueryToolKind,
+    frozen: Option<Arc<FrozenWiki>>,
 }
 impl QueryTool {
     pub fn new(wiki: Arc<Wiki>, kind: QueryToolKind) -> Self {
-        Self { wiki, kind }
+        Self {
+            wiki,
+            kind,
+            frozen: None,
+        }
     }
 }
 
@@ -117,6 +122,13 @@ struct PreparedQuery {
 }
 
 impl QueryTool {
+    pub fn frozen(wiki: Arc<Wiki>, kind: QueryToolKind, view: Arc<FrozenWiki>) -> Self {
+        Self {
+            wiki,
+            kind,
+            frozen: Some(view),
+        }
+    }
     fn normalize(&self, value: Value) -> Result<Value, ToolError> {
         match self.kind {
             QueryToolKind::Search => {
@@ -136,9 +148,11 @@ impl QueryTool {
             QueryToolKind::Search => {
                 let args: SearchArgs = serde_json::from_value(value).map_err(invalid)?;
                 serde_json::to_value(
-                    self.wiki
-                        .search(&args.query, args.collection, args.limit)
-                        .map_err(execution)?,
+                    match &self.frozen {
+                        Some(v) => v.search(&args.query, args.collection, args.limit),
+                        None => self.wiki.search(&args.query, args.collection, args.limit),
+                    }
+                    .map_err(execution)?,
                 )
                 .map_err(execution)?
             }
@@ -147,14 +161,23 @@ impl QueryTool {
                 if args.limit > 65536 {
                     return Err(invalid("source tool limit is at most 65536 bytes"));
                 }
-                let record = self
-                    .wiki
-                    .find_source(&args.source_id, &args.revision, args.artifact.as_ref())
-                    .map_err(execution)?;
+                let record = match &self.frozen {
+                    Some(v) => {
+                        v.find_source(&args.source_id, &args.revision, args.artifact.as_ref())
+                    }
+                    None => self.wiki.find_source(
+                        &args.source_id,
+                        &args.revision,
+                        args.artifact.as_ref(),
+                    ),
+                }
+                .map_err(execution)?;
                 serde_json::to_value(
-                    self.wiki
-                        .read_source(&record, args.offset, args.limit)
-                        .map_err(execution)?,
+                    match &self.frozen {
+                        Some(v) => v.read_source(&record, args.offset, args.limit),
+                        None => self.wiki.read_source(&record, args.offset, args.limit),
+                    }
+                    .map_err(execution)?,
                 )
                 .map_err(execution)?
             }
@@ -166,7 +189,11 @@ impl QueryTool {
                         limit,
                     } => {
                         check_limit(limit)?;
-                        let report = self.wiki.page_neighbors(&page_id).map_err(execution)?;
+                        let report = match &self.frozen {
+                            Some(v) => v.page_neighbors(&page_id),
+                            None => self.wiki.page_neighbors(&page_id),
+                        }
+                        .map_err(execution)?;
                         json!({"api_version":1,"page_id":page_id,"revision":report.page.revision,"title":report.page.title,"aliases":report.page.aliases,"offset":offset,"limit":limit,
                         "incoming_total":report.incoming.len(),"outgoing_total":report.outgoing.len(),"nodes_total":report.page.nodes.len(),
                         "incoming":report.incoming.into_iter().skip(offset).take(limit).collect::<Vec<_>>(),"outgoing":report.outgoing.into_iter().skip(offset).take(limit).collect::<Vec<_>>(),"nodes":report.page.nodes.into_iter().skip(offset).take(limit).collect::<Vec<_>>()})
@@ -180,14 +207,18 @@ impl QueryTool {
                         limit,
                     } => {
                         check_limit(limit)?;
-                        let record = self
-                            .wiki
-                            .find_source(&source_id, &revision, artifact.as_ref())
-                            .map_err(execution)?;
-                        let report = self
-                            .wiki
-                            .source_neighbors(&record, &node_id)
-                            .map_err(execution)?;
+                        let record = match &self.frozen {
+                            Some(v) => v.find_source(&source_id, &revision, artifact.as_ref()),
+                            None => self
+                                .wiki
+                                .find_source(&source_id, &revision, artifact.as_ref()),
+                        }
+                        .map_err(execution)?;
+                        let report = match &self.frozen {
+                            Some(v) => v.source_neighbors(&record, &node_id),
+                            None => self.wiki.source_neighbors(&record, &node_id),
+                        }
+                        .map_err(execution)?;
                         json!({"api_version":1,"source":report.source,"node":report.node,"parent":report.parent,"children_total":report.children.len(),"offset":offset,"limit":limit,"children":report.children.into_iter().skip(offset).take(limit).collect::<Vec<_>>()})
                     }
                 }
@@ -207,7 +238,10 @@ impl QueryTool {
             EffectKind::ReadOnly,
             RetrySafety::Safe,
         )
-        .in_scope(self.wiki.root().to_string_lossy()))
+        .in_scope(match &self.frozen {
+            Some(v) => v.scope().map_err(execution)?,
+            None => self.wiki.authority_scope().map_err(execution)?,
+        }))
     }
 }
 fn check_limit(limit: usize) -> Result<(), ToolError> {

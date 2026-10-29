@@ -175,3 +175,19 @@ exercise review, explicit publication and reconciliation. Full validation uses
 the reproduction commands above; simulated failures do not establish physical
 power-loss durability or exclusion against uncooperative editors. No live model
 requests or Nausicaa modifications are needed.
+
+## M3 workflow integration
+
+Deterministic workflow tests cover source-search receipts, cited answers, staged
+generation without publication, malformed quotes, truncation, evidence gaps,
+model call/deadline limits, cancellation, rewrite limits, invented nodes and
+snapshot isolation after live edits/imports. Scripted responses establish host
+integration and structural citation checks, not live answer support. The native
+provider is pinned to the same Nausicaa revision. No live credentials were read
+and no paid/live model evaluation was performed.
+
+M3 local result: 64 workspace tests pass, including a loopback native-provider
+CLI fixture with required counter, durable usage/acceptance, injected apply denial
+and cited contradiction handling. Formatting, strict Clippy, rustdoc, docs and
+local-host compatibility passed. M2 hosted CI also passed on Ubuntu 24.04 and
+macOS 15: [run 40873189271](https://github.com/Ceskoslov/Ohmu/actions/runs/40873189271).

@@ -13,12 +13,16 @@ path = "src/main.rs"
 [dependencies]
 ohmu-core.workspace = true
 ohmu-engine.workspace = true
+ohmu-nausicaa.workspace = true
+agent-harness-core.workspace = true
+agent-harness-provider-openai.workspace = true
+tokio.workspace = true
+serde.workspace = true
+tempfile.workspace = true
 clap.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 
-[dev-dependencies]
-tempfile.workspace = true
 
 [lints]
 workspace = true

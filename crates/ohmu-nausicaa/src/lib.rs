@@ -11,11 +11,12 @@ use agent_harness_core::{
     ToolOutput, ToolRegistry,
 };
 use ohmu_core::PageId;
-use ohmu_engine::Wiki;
+use ohmu_engine::{FrozenWiki, Wiki};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 mod query;
+pub mod workflow;
 pub use query::{QueryTool, QueryToolKind, query_policy, register_query_tools};
 mod maintenance;
 pub use maintenance::{
@@ -41,6 +42,7 @@ pub fn read_only_policy() -> CapabilityPolicy {
 
 pub struct ReadTool {
     wiki: Arc<Wiki>,
+    frozen: Option<Arc<FrozenWiki>>,
 }
 
 #[derive(Deserialize)]
@@ -67,9 +69,32 @@ struct PreparedRead {
 impl ReadTool {
     #[must_use]
     pub fn new(wiki: Arc<Wiki>) -> Self {
-        Self { wiki }
+        Self { wiki, frozen: None }
     }
 
+    pub fn frozen(wiki: Arc<Wiki>, view: Arc<FrozenWiki>) -> Self {
+        Self {
+            wiki,
+            frozen: Some(view),
+        }
+    }
+    fn page(&self, id: &PageId) -> Result<ohmu_core::PageSnapshot, ohmu_engine::EngineError> {
+        match &self.frozen {
+            Some(v) => v.read_page(id),
+            None => self.wiki.read_page(id),
+        }
+    }
+    fn passage(
+        &self,
+        id: &PageId,
+        offset: usize,
+        limit: usize,
+    ) -> Result<ohmu_core::PagePassage, ohmu_engine::EngineError> {
+        match &self.frozen {
+            Some(v) => v.read_page_passage(id, offset, limit),
+            None => self.wiki.read_page_passage(id, offset, limit),
+        }
+    }
     fn action(&self, arguments: &PreparedRead) -> Result<CanonicalAction, ToolError> {
         Ok(CanonicalAction::new(
             READ_TOOL,
@@ -77,7 +102,10 @@ impl ReadTool {
             EffectKind::ReadOnly,
             RetrySafety::Safe,
         )
-        .in_scope(self.wiki.root().to_string_lossy()))
+        .in_scope(match &self.frozen {
+            Some(v) => v.scope().map_err(execution)?,
+            None => self.wiki.authority_scope().map_err(execution)?,
+        }))
     }
 }
 
@@ -114,19 +142,15 @@ impl Tool for ReadTool {
             serde_json::from_value(call.arguments.clone()).map_err(invalid)?;
         let ranged = arguments.offset.is_some() || arguments.limit.is_some();
         let revision = if ranged {
-            self.wiki
-                .read_page_passage(
-                    &arguments.page_id,
-                    arguments.offset.unwrap_or(0),
-                    arguments.limit.unwrap_or(16384),
-                )
-                .map_err(execution)?
-                .revision
+            self.passage(
+                &arguments.page_id,
+                arguments.offset.unwrap_or(0),
+                arguments.limit.unwrap_or(16384),
+            )
+            .map_err(execution)?
+            .revision
         } else {
-            self.wiki
-                .read_page(&arguments.page_id)
-                .map_err(execution)?
-                .revision
+            self.page(&arguments.page_id).map_err(execution)?.revision
         };
         Ok(PreparedToolCall {
             call_id: call.id.clone(),
@@ -157,20 +181,18 @@ impl Tool for ReadTool {
             }
             let value = if let (Some(offset), Some(limit)) = (arguments.offset, arguments.limit) {
                 let passage = self
-                    .wiki
-                    .read_page_passage(&arguments.page_id, offset, limit)
+                    .passage(&arguments.page_id, offset, limit)
                     .map_err(execution)?;
                 if passage.revision != arguments.revision {
                     return Err(execution("page changed after prepare"));
                 }
                 serde_json::to_value(passage).map_err(execution)?
             } else if arguments.offset.is_none() && arguments.limit.is_none() {
-                serde_json::to_value(
-                    self.wiki
-                        .read_revision(&arguments.page_id, &arguments.revision)
-                        .map_err(execution)?,
-                )
-                .map_err(execution)?
+                let page = self.page(&arguments.page_id).map_err(execution)?;
+                if page.revision != arguments.revision {
+                    return Err(execution("page changed after prepare"));
+                }
+                serde_json::to_value(page).map_err(execution)?
             } else {
                 return Err(invalid("incomplete prepared pagination"));
             };

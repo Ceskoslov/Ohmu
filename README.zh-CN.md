@@ -8,13 +8,13 @@ Ohmu 与 [Nausicaa](https://github.com/Ceskoslov/Nausicaa) 分仓协作：Ohmu �
 
 ## 当前状态
 
-**M1 已实现：资料导入、页面关系及无向量全文检索。** M2–M4 持续分步推进。
+**M1–M3 已实现：无向量检索、草稿发布与恢复、固定快照的引用问答及模型草稿生成。** M4 正在实测验证。
 
 | 已实现 | 后续阶段 |
 | --- | --- |
-| 本地 Markdown/HTML/PDF 与公共 HTTP(S) URL 导入 | 草稿生成、审阅发布与故障恢复 |
-| 不可变来源版本、页码/字节定位、目录重建 | 模型驱动的综合与引用问答 |
-| 页面元数据、别名、双向链接和健康检查 | 备份、恢复与规模评估 |
+| 本地 Markdown/HTML/PDF 与公共 HTTP(S) URL 导入 | 真实模型质量评估 |
+| 不可变来源版本、页码/字节定位、目录重建 | 规模性能评估 |
+| 页面元数据、别名、双向链接和健康检查 | 发布兼容性验证 |
 | 中文 Jieba + Tantivy BM25、增量索引及失效检测 | 发布打包与兼容性矩阵 |
 | Nausicaa 页面读取、搜索、关系与来源读取工具 | OCR 和多用户服务不在 v1 范围 |
 
@@ -57,7 +57,7 @@ cargo run -p ohmu-cli -- search Rust --collection sources --wiki /tmp/ohmu-demo 
 cargo run -p ohmu-cli -- lint --wiki /tmp/ohmu-demo --json
 ```
 
-外部编辑或新增来源会使旧索引失效；重新运行 `reindex` 更新。`read --offset 0 --limit 16384` 支持读取大页面；`lint` 和 `neighbors` 始终读取当前 Markdown。模型生成与发布将在后续阶段加入。
+外部编辑或新增来源会使旧索引失效；重新运行 `reindex` 更新。`read --offset 0 --limit 16384` 支持读取大页面；`lint` 和 `neighbors` 始终读取当前 Markdown。模型生成与显式发布已实现。
 
 ## 设计与集成
 
@@ -89,4 +89,9 @@ M1–M2 已实现：无向量检索、可审阅草稿、显式发布、中断恢
 再用 `apply <digest>` 显式发布。中断后使用 `operations` 和
 `recover <operation> --strategy finish|rollback`。`snapshot`、`snapshot-read`、
 `backup <新目录>`、`restore <备份> <新目录>` 保留知识及持久工作流状态。
-提案格式、证据和恢复限制见[发布说明](docs/PUBLICATION.md)。模型生成将在 M3 加入。
+提案格式、证据和恢复限制见[发布说明](docs/PUBLICATION.md)。`ask` / `compile` 已接通 Nausicaa。
+
+`ask` 生成区分事实、综合、矛盾和证据缺口的引用答案；`compile` 生成草稿。
+二者使用固定快照，均不会自动发布。实时请求要求明确的 provider/model、
+上下文及输出预算、可信的模型专用 token counter 和新的事件日志路径。
+配置及限制见[工作流说明](docs/WORKFLOWS.md)。脚本测试不代表真实模型质量。

@@ -8,12 +8,12 @@ Ohmu integrates with [Nausicaa](https://github.com/Ceskoslov/Nausicaa) across se
 
 ## Current status
 
-**M1–M2 are implemented: vectorless retrieval, reviewable drafts, publication, recovery and backups.** M3–M4 are being delivered in stages.
+**M1–M3 are implemented: vectorless retrieval, reviewed publication/recovery and snapshot-pinned cited model workflows.** M4 is under measured validation.
 
 | Implemented | Later stages |
 | --- | --- |
-| Local Markdown/HTML/PDF and public HTTP(S) imports | Model-powered draft generation |
-| Immutable sources, page/byte evidence and catalog rebuild | Model-powered synthesis and cited answers |
+| Local Markdown/HTML/PDF and public HTTP(S) imports | Live model quality evaluation |
+| Immutable sources, page/byte evidence and catalog rebuild | Scale evaluation |
 | Page frontmatter, aliases, backlinks and health checks | Scale evaluation |
 | Jieba + Tantivy BM25, incremental indexing and stale checks | Packaging and compatibility matrix |
 | Nausicaa page, search, neighbor and source-read tools | OCR and multi-user services are outside v1 |
@@ -57,7 +57,7 @@ cargo run -p ohmu-cli -- search Rust --collection sources --wiki /tmp/ohmu-demo 
 cargo run -p ohmu-cli -- lint --wiki /tmp/ohmu-demo --json
 ```
 
-External edits and newly imported sources invalidate the previous index; run `reindex` again to update it. `read --offset 0 --limit 16384` reads large pages in bounded slices. `lint` and `neighbors` always inspect current Markdown. Model generation arrives in M3; publication is explicitly reviewed.
+External edits and newly imported sources invalidate the previous index; run `reindex` again to update it. `read --offset 0 --limit 16384` reads large pages in bounded slices. `lint` and `neighbors` always inspect current Markdown. Model generation is available; publication is explicitly reviewed.
 
 ## Design and integration
 
@@ -90,3 +90,10 @@ Review publication with `stage proposal.json`, `drafts`, `draft <digest>` and
 `snapshot-read`, `backup <new-directory>` and `restore <backup> <new-directory>`
 retain knowledge and durable workflow state. See [publication](docs/PUBLICATION.md)
 for the proposal schema, evidence, recovery and filesystem limits.
+
+`ask` returns cited facts, synthesis, contradictions and evidence gaps; `compile`
+generates a draft. Both use a frozen query snapshot and never automatically
+publish. Live requests require explicit provider/model, context/output budgets,
+a trusted model-specific token counter and a fresh event journal. See
+[workflows](docs/WORKFLOWS.md) for configuration and limits. Scripted fixtures do
+not establish live-model quality.

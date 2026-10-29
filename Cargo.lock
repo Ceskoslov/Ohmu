@@ -45,6 +45,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "agent-harness-provider-openai"
+version = "0.1.0"
+source = "git+https://github.com/Ceskoslov/Nausicaa.git?rev=a2ab5b365cfb29bedd48d29b69951510ae5d1ef5#a2ab5b365cfb29bedd48d29b69951510ae5d1ef5"
+dependencies = [
+ "agent-harness-core",
+ "libc",
+ "reqwest",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1571,12 +1584,17 @@ dependencies = [
 name = "ohmu-cli"
 version = "0.1.0"
 dependencies = [
+ "agent-harness-core",
+ "agent-harness-provider-openai",
  "clap",
  "ohmu-core",
  "ohmu-engine",
+ "ohmu-nausicaa",
+ "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]

@@ -134,7 +134,9 @@ bytes must not be silently discarded. Rollback uses recorded bytes, not an LLM.
 
 ## M3 — Nausicaa-powered synthesis and cited answers
 
-**Status: planned. Depends on M1 and M2.**
+**Status: implementation complete; deterministic acceptance verified. Live evaluation remains opt-in and unmeasured. Depends on M1 and M2.**
+
+See [WORKFLOWS](WORKFLOWS.md) for executable contracts and evidence limits.
 
 1. Compose the existing AgentRuntime and ModelAdapter in the application; reuse
    provider configuration and native async transport instead of implementing a

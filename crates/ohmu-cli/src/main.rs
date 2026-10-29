@@ -1,3 +1,4 @@
+mod model;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -186,6 +187,10 @@ enum Command {
         #[arg(long, default_value = ".")]
         wiki: PathBuf,
     },
+    /// Ask a cited question using an explicitly configured live provider.
+    Ask(model::ModelArgs),
+    /// Generate a cited draft; never automatically publish.
+    Compile(model::ModelArgs),
     Restore {
         backup: PathBuf,
         destination: PathBuf,
@@ -202,10 +207,14 @@ enum CliError {
     Digest(#[from] InvalidDigest),
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+    #[error("{0}")]
+    Model(String),
 }
 
 fn run(command: Command) -> Result<(&'static str, Value, String), CliError> {
     match command {
+        Command::Ask(args) => model::run(args, ohmu_nausicaa::workflow::WorkflowKind::Ask),
+        Command::Compile(args) => model::run(args, ohmu_nausicaa::workflow::WorkflowKind::Compile),
         Command::Init { path, name } => {
             let wiki = Wiki::init(&path, &name)?;
             Ok((

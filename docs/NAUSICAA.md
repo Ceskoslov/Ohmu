@@ -101,7 +101,7 @@ manifest needs a path relative to that member instead. The adapter depends only
 on harness-core, not the Nausicaa facade or application, so this creates no cycle.
 
 If the consumer enables optional provider crates from both Git and local sources,
-patch those packages at the same root too. Current S0 has no provider dependency.
+patch those packages at the same root too. M3 CLI uses agent-harness-provider-openai from the same pinned revision.
 Patches in a dependency's manifest do not control the final application's graph.
 Absolute host-specific overrides must not be committed; an ignored
 `.cargo/config.toml` can hold a local `[patch]` table instead.
@@ -135,7 +135,7 @@ EffectKind enum and separate grants; do not modify core's serialized enum just t
 hide those effects behind a read classification. `prepare` validates and freezes
 an import request but must not perform the network/write effect before approval.
 
-The M3 host wraps existing context compilation with a small advisory Wiki usage
+The implemented M3 host wraps existing context compilation with a small advisory Wiki usage
 segment and per-query snapshot identifier. It reads content through tools rather
 than loading Wiki/source directories as executable rules. It reuses the existing
 ModelAdapter and optional native reqwest transport, with explicit token-window,
@@ -174,3 +174,12 @@ Preparation freezes full proposed bytes or the draft/base/operation digest;
 execution validates root and pages filesystem identity. Durable engine operation
 IDs reconcile unknown publication receipts. No model recovery, backup or network
 capability is granted. See [PUBLICATION](PUBLICATION.md).
+
+## M3 application composition
+
+See [WORKFLOWS](WORKFLOWS.md). `run_workflow` accepts the existing ModelAdapter,
+freezes a snapshot, projects read capabilities and invokes AgentRuntime once.
+The CLI supplies the pinned provider with native async reqwest and a required
+trusted request token counter. Neither workflow exposes apply; compile stages
+only after snapshot, provenance and citation acceptance. Acceptance has its own
+durable report, separate from harness TurnCompleted.

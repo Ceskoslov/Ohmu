@@ -257,3 +257,89 @@ fn m2_cli_stages_reviews_publishes_snapshots_and_restores_a_backup() {
     );
     assert!(restored.join("pages/note.md").exists());
 }
+
+#[test]
+fn live_cli_uses_native_transport_with_required_counter_and_durable_acceptance() {
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        os::unix::fs::PermissionsExt,
+        time::Duration,
+    };
+    let temp = tempdir().unwrap();
+    let root = temp.path().join("wiki");
+    ohmu_engine::Wiki::init(&root, "test").unwrap();
+    // Deliberately fixed accounting is ONLY a fixture for transport plumbing.
+    let counter = temp.path().join("fixture-counter");
+    std::fs::write(
+        &counter,
+        "#!/bin/sh\ncat >/dev/null\nprintf '%s' '{\"input_tokens\":100}'\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&counter, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let endpoint = format!(
+        "http://{}/v1/chat/completions",
+        listener.local_addr().unwrap()
+    );
+    let server = std::thread::spawn(move || {
+        let (mut socket, _) = listener.accept().unwrap();
+        socket
+            .set_read_timeout(Some(Duration::from_secs(10)))
+            .unwrap();
+        let mut bytes = Vec::new();
+        let mut buffer = [0; 4096];
+        loop {
+            let n = socket.read(&mut buffer).unwrap();
+            assert!(n > 0);
+            bytes.extend_from_slice(&buffer[..n]);
+            if let Some(end) = bytes.windows(4).position(|w| w == b"\r\n\r\n") {
+                let headers = String::from_utf8_lossy(&bytes[..end]).to_lowercase();
+                let length: usize = headers
+                    .lines()
+                    .find_map(|l| l.strip_prefix("content-length:"))
+                    .unwrap()
+                    .trim()
+                    .parse()
+                    .unwrap();
+                if bytes.len() >= end + 4 + length {
+                    break;
+                }
+            }
+        }
+        let body=serde_json::json!({"choices":[{"message":{"role":"assistant","content":"{\"facts\":[],\"synthesis\":[],\"contradictions\":[],\"evidence_gaps\":[\"No source found.\"]}"},"finish_reason":"stop"}],"usage":{"prompt_tokens":100,"completion_tokens":30}}).to_string();
+        write!(socket,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",body.len(),body).unwrap();
+    });
+    let events = temp.path().join("query.jsonl");
+    let output = ohmu(&[
+        "--json",
+        "ask",
+        "Question",
+        "--wiki",
+        root.to_str().unwrap(),
+        "--endpoint",
+        &endpoint,
+        "--model",
+        "fixture-model",
+        "--token-counter",
+        counter.to_str().unwrap(),
+        "--context-window",
+        "4096",
+        "--output-tokens",
+        "1000",
+        "--no-api-key",
+        "--events",
+        events.to_str().unwrap(),
+    ]);
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["result"]["accepted"], true);
+    assert_eq!(report["result"]["partial"], true);
+    assert_eq!(report["result"]["usage"]["input_tokens"], 100);
+    assert!(events.with_extension("acceptance.json").exists());
+}
