@@ -62,13 +62,33 @@ with tempfile.TemporaryDirectory(prefix='ohmu-package-') as temporary:
                 destination.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(path, destination / path.name)
                 files.append(path.name)
+        # Git workspace members may inherit a license stored above their crate.
+        if not files and (package['source'] or '').startswith('git+'):
+            for ancestor in list(source_root.parents)[:4]:
+                for path in sorted(ancestor.iterdir()):
+                    if path.is_file() and path.name.upper().startswith(('LICENSE', 'LICENCE', 'COPYING', 'NOTICE')):
+                        destination.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(path, destination / path.name)
+                        files.append(path.name)
+                if files:
+                    break
+        # Some published crates omit a standalone license file. Preserve the
+        # entire published source, including README, manifest and file notices,
+        # instead of inventing copyright text or dropping those notices.
+        bundled_source = None
+        if not files:
+            bundled_source = f"sources/{package['name']}-{package['version']}"
+            shutil.copytree(source_root, stage / bundled_source,
+                            ignore=shutil.ignore_patterns('.git', 'target', '.cargo-ok'))
         inventory.append({'name': package['name'], 'version': package['version'], 'license': package['license'],
                           'repository': package['repository'], 'source': package['source'], 'license_files': files,
-                          'source_archive': f"https://crates.io/api/v1/crates/{package['name']}/{package['version']}/download" if (package['source'] or '').startswith('registry+') else package['repository']})
+                          'bundled_source': bundled_source,
+                          'source_archive': f"https://crates.io/api/v1/crates/{package['name']}/{package['version']}/download" if (package['source'] or '').startswith('registry+') else (package['repository'] or package['source'])})
     (stage / 'THIRD-PARTY.json').write_text(json.dumps(inventory, indent=2) + '\n', encoding='utf-8')
     (stage / 'NOTICE').write_text('Ohmu is MIT OR Apache-2.0. Dependencies retain their own licenses.\n'
         'THIRD-PARTY.json includes all locked packages, conservatively including development/platform dependencies.\n'
         'License texts are in licenses/. Unmodified MPL-2.0 component sources are available from the listed source archives.\n'
+        'When a published package omits standalone license files, its full source and existing notices are retained in sources/.\n'
         'No dependency source modifications are included. See Cargo.lock for checksums.\n', encoding='utf-8')
     shutil.copy2(ROOT / 'Cargo.lock', stage / 'Cargo.lock')
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()

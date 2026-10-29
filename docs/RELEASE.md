@@ -28,7 +28,10 @@ included alongside the binary.
 
 THIRD-PARTY.json inventories every locked dependency, conservatively including
 development and non-host platform packages. License texts and notices are copied
-from their downloaded package roots. Dependencies retain their original licenses;
+from their downloaded package roots or Git workspace ancestors. Packages that
+omit standalone license files retain their complete published source, README,
+manifest and file notices under sources/; no copyright text is invented. The
+inventory identifies every fallback and original source URL. Dependencies retain their original licenses;
 Ohmu's MIT OR Apache-2.0 grant does not relicense them. HTML-related MPL-2.0
 components are unmodified; their source archive URLs and exact versions are
 included. Cargo.lock retains registry checksums and the harness Git revision.
