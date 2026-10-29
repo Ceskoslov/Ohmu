@@ -1,25 +1,25 @@
 # Ohmu
 
-**简体中文** | [English](README.en.md)
+**English** | [简体中文](README.zh-CN.md)
 
-用 Rust 构建的本地优先 LLM Wiki：将资料持续整理为可阅读、可编辑、可追溯的 Markdown 知识库。完全不使用 embedding、向量数据库或向量相似度搜索。
+A local-first LLM wiki in Rust: continuously compile sources into readable, editable Markdown knowledge with traceable evidence. No embeddings, vector database, or vector similarity search.
 
-Ohmu 与 [Nausicaa](https://github.com/Ceskoslov/Nausicaa) 分仓协作：Ohmu 管理知识，Nausicaa 提供 agent 循环、模型协议、权限、取消和持久执行回执。
+Ohmu integrates with [Nausicaa](https://github.com/Ceskoslov/Nausicaa) across separate repositories. Ohmu owns knowledge; Nausicaa owns the agent loop, model protocol, authority, cancellation, and durable tool receipts.
 
-## 当前状态
+## Current status
 
-这是**完整规划与可运行骨架**，不是已经实现全部功能的知识库产品。
+This is a **complete design and runnable scaffold**, not the fully implemented wiki product.
 
-| 已实现 | 已规划，尚未实现 |
+| Implemented | Planned, not implemented |
 | --- | --- |
-| 新建知识目录、配置与目录诊断 | Markdown、静态网页、文本 PDF 导入 |
-| 有大小限制的 Markdown 页面读取与 SHA-256 版本 | 中文分词、BM25 全文搜索、目录树与链接导航 |
-| Nausicaa `ohmu_read` 工具 | LLM 综合草稿、多页审阅发布、故障恢复 |
-| 无模型凭据的集成示例与持久回执验证 | 带原文引用的问答、规模评估 |
+| Wiki initialization, configuration and layout diagnostics | Markdown, static web and text PDF ingestion |
+| Bounded Markdown reads with SHA-256 revisions | Chinese tokenization, BM25 search, tree and link navigation |
+| Nausicaa `ohmu_read` tool | LLM drafts, multi-page review/publication and recovery |
+| Credential-free integration example and durable receipt checks | Source-cited question answering and scale evaluation |
 
-## 快速开始
+## Quick start
 
-需要 Rust 1.98.0；当前支持 Linux/WSL，CI 另配置 macOS。首次构建需要联网获取依赖与固定提交的 Nausicaa。
+Requires Rust 1.98.0. Linux/WSL is supported locally; CI also configures macOS. The first build needs network access for dependencies and the pinned Nausicaa commit.
 
 ```sh
 cargo run -p ohmu-cli -- init /tmp/ohmu-demo --name "研究 Wiki"
@@ -27,27 +27,27 @@ cargo run -p ohmu-cli -- doctor --wiki /tmp/ohmu-demo
 cargo run -p ohmu-cli -- read welcome --wiki /tmp/ohmu-demo --json
 ```
 
-`init` 要求目标不存在且父目录已存在；重复演示时使用新的目录。可直接编辑 `pages/welcome.md`，再次读取会返回新的内容哈希。读取整页最多 256 KiB，拒绝符号链接及非 UTF-8 文件。
+The initialization target must not exist; its parent must exist. Use fresh paths when repeating the demo. Edit `pages/welcome.md` directly, then read it again to obtain a new content hash. Whole-page reads are capped at 256 KiB and refuse symlinks and non-UTF-8 files.
 
-通过 Nausicaa 执行读取，无需 API key，也不运行 shell 工具：
+Read through Nausicaa without an API key or a shell tool:
 
 ```sh
 cargo run -p ohmu-nausicaa --example read_wiki -- /tmp/ohmu-demo /tmp/ohmu-demo-events.jsonl
 ```
 
-事件文件必须尚不存在。示例使用 scripted model，验证工具结果先持久化再交给模型；它不证明真实模型的问答质量。
+The event file must not already exist. The example uses a scripted model and verifies that a tool result is persisted before reaching the model. It does not establish live-model answer quality.
 
-## 设计与集成
+## Design and integration
 
-- [完整实施计划与验收标准](docs/PLAN.md)
-- [架构与现有边界](docs/ARCHITECTURE.md)
-- [技术选型与决策记录](docs/ADR.md)
-- [Nausicaa 集成与本地依赖覆盖](docs/NAUSICAA.md)
-- [验证记录与复现命令](docs/VALIDATION.md)
+- [Implementation plan and acceptance criteria](docs/PLAN.md)
+- [Architecture and current boundaries](docs/ARCHITECTURE.md)
+- [Technology decisions](docs/ADR.md)
+- [Nausicaa integration and local dependency overrides](docs/NAUSICAA.md)
+- [Validation evidence and reproduction](docs/VALIDATION.md)
 
-除 README 外，仓库文档默认英文。README 两个版本保持相同状态和命令，通过顶部链接切换。
+All documentation except the README defaults to English. The two README versions share status and commands; use the links at the top to switch languages.
 
-## 开发
+## Development
 
 ```sh
 cargo fmt --all -- --check
@@ -58,6 +58,6 @@ python3 scripts/check_docs.py
 python3 scripts/check_local_host.py --nausicaa ../Nausicaa
 ```
 
-首次运行前先执行 `cargo fetch --locked`。本地覆盖检查只创建临时消费应用，不修改 Nausicaa 或本仓库锁文件。
+Run `cargo fetch --locked` first on a fresh checkout. The local override check creates a temporary consumer and changes neither Nausicaa nor this repository's lockfile.
 
-代码按 MIT 或 Apache-2.0 双许可证发布，使用者可任选其一。
+Licensed under either MIT or Apache-2.0, at your option.

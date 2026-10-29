@@ -24,7 +24,7 @@ for document in sorted(ROOT.rglob("*.md")):
         if not target.is_relative_to(ROOT) or not target.exists():
             errors.append(f"{document.relative_to(ROOT)}: broken/local-escape link: {destination}")
 
-for filename, other in [("README.md", "README.en.md"), ("README.en.md", "README.md")]:
+for filename, other in [("README.md", "README.zh-CN.md"), ("README.zh-CN.md", "README.md")]:
     if f"]({other})" not in (ROOT / filename).read_text(encoding="utf-8"):
         errors.append(f"{filename}: missing language switch to {other}")
 

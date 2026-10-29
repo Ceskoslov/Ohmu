@@ -3,7 +3,7 @@
 Read [the implementation plan](docs/PLAN.md), [architecture](docs/ARCHITECTURE.md),
 and [Nausicaa contract](docs/NAUSICAA.md) before extending the scaffold.
 
-- Keep README.md and README.en.md synchronized, with language switch links.
+- Keep README.md and README.zh-CN.md synchronized, with language switch links.
   Other project documentation defaults to English.
 - No embeddings, vector databases, vector similarity search, or embedding fallback.
 - Markdown is content authority. SQLite metadata and Tantivy indexes must never

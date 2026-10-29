@@ -133,7 +133,7 @@ is implemented in the host, not assumed from a harness roadmap entry.
 
 ## ADR-009 — Documentation language and delivery (S0)
 
-README.md defaults to Simplified Chinese; README.en.md mirrors it with reciprocal
+README.md defaults to English; README.zh-CN.md provides Simplified Chinese with reciprocal
 switch links. All planning, architecture, decisions, integration and contributor
 documentation defaults to English. Keep commands and implementation status aligned
 between README versions. No bilingual documentation generator or website is needed.
