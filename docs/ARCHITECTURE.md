@@ -4,21 +4,22 @@ Status: M1 is implemented. [SOURCES](SOURCES.md) describes immutable ingestion;
 [RETRIEVAL](RETRIEVAL.md) describes URL imports, page relationships and indexing.
 M2 publication/recovery is implemented; see [PUBLICATION](PUBLICATION.md).
 M3 workflow composition is implemented; see [WORKFLOWS](WORKFLOWS.md).
-M4 remains subject to measured validation in [PLAN](PLAN.md).
+M4 scale and packaging are implemented; see [SCALE](SCALE.md) and [RELEASE](RELEASE.md)
+for measured scope and remaining external evaluation.
 
 ## Ownership and dependency direction
 
 ```mermaid
 flowchart TD
     CLI[ohmu-cli] --> Engine[ohmu-engine]
-    CLI -. M3 composition .-> Adapter[ohmu-nausicaa]
+    CLI --> Adapter[ohmu-nausicaa]
     Host[Nausicaa embedding application] --> Adapter
     Adapter --> Engine
     Adapter --> Harness[agent-harness-core: pinned Git revision]
     Engine --> Core[ohmu-core]
     Adapter --> Core
-    Engine -. M1 .-> Search[Tantivy: disposable index]
-    Engine -. M1/M2 .-> Metadata[SQLite: derived catalogs; durable workflow journal planned in M2]
+    Engine --> Search[Tantivy: disposable index]
+    Engine --> Metadata[SQLite: derived catalogs and durable workflow journal]
     Engine --> Files[Markdown: content authority]
 ```
 
@@ -38,7 +39,7 @@ source locators/passages are also implemented. Draft, changeset, operation and s
   ohmu.toml             # schema_version = 1; name; no model credentials
   pages/welcome.md      # user-editable content
   raw/                  # immutable blobs, parser artifacts, caches and provenance records
-  .ohmu/                # derived source catalog and source writer lock
+  .ohmu/                # derived catalog/index, durable state, snapshots, objects and locks
 ```
 
 `Wiki::init` creates only a previously nonexistent directory. The parent must
@@ -64,13 +65,14 @@ the final root component is opened without following a link, subject to OS path
 resolution behavior. An already-open reader stays attached to its original pages
 directory after a rename. Reopen the engine when deliberately replacing that
 directory. The metadata check detects ordinary concurrent changes, not every
-possible same-size in-place race. S0 provides neither external editor locking nor
-a multi-page snapshot. A prepared tool rechecks its page hash before returning.
+possible same-size in-place race. External editors do not obey engine locks. M2 adds retained multi-page snapshots
+and cooperative reader/writer locks. A prepared tool rechecks its page hash before returning.
 
 `doctor` revalidates config and required directory layout without model access or
-writes. It is not a content validator, writability test, or permission audit.
+writes. It is not a content validator, writability test, or permission audit; use lint and
+operations for structural and recovery diagnostics.
 
-## Planned content model (M1–M2)
+## Content model (M1–M2)
 
 - Source identity separates a logical source from immutable SHA-256 revisions.
   Each revision records raw bytes, retrieval URL/path, retrieval time, media type,
@@ -91,12 +93,12 @@ writes. It is not a content validator, writability test, or permission audit.
   explicit create intent), citations, proposed links and a summary. M2 supports
   page creation/update; deletion and rename are deferred to avoid dangling data.
 
-SQLite will contain rebuildable catalogs (sources, nodes, pages, links, aliases,
-citations, index generations) and non-disposable workflow data (drafts, apply
-operations and checkpoints). Backups must preserve the latter; rebuilding an
+SQLite contains rebuildable source/page/link/index metadata and non-disposable
+draft/apply state. Source nodes stay in immutable parser artifacts; citations are
+part of versioned proposals and rendered Markdown. Backups must preserve the latter; rebuilding an
 index is not a substitute for backing up draft/recovery state.
 
-## Planned ingestion, retrieval and generation (M1–M3)
+## Ingestion, retrieval and generation (M1–M3)
 
 Ingestion copies source bytes into content-addressed storage, records provenance,
 parses normalized content with locators, builds deterministic nodes, then indexes

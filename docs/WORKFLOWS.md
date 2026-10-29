@@ -44,9 +44,11 @@ async reads; bounded synchronous parsing/counter work can delay cancellation.
 There are no automatic model retries. Budget failures preserve evidence and a
 partial report, without accepting an unvalidated answer or staging a draft.
 
-The caller supplies a **new**, exclusively owned JSONL journal path. Durable
+The caller supplies a **new**, exclusively owned JSONL journal path and acceptance
+path. Acceptance destination creation is checked before model calls or staging. Durable
 receipts precede the next model call. Independent acceptance is written to the
-same basename with `.acceptance.json`; preserve both files. Rejected reports use
+same basename with `.acceptance.json`; preserve both files. An interrupted process can leave an empty/incomplete acceptance
+file: inspect durable drafts and journals before retrying. Rejected reports use
 `accepted:false`, `partial:true`, `reason`; callers must inspect acceptance, not
 infer it from process success. No unknown write is automatically replayed: inspect
 M2 drafts/operations after any uncertain stage or receipt failure.

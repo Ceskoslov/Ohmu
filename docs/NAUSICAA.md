@@ -57,9 +57,8 @@ matching revision. An intervening edit fails rather than substituting new conten
 Cancellation is checked before prepare and before/after execution. Filesystem work
 is synchronous and bounded; this is not in-flight asynchronous file cancellation.
 
-Result fields are `api_version`, `page_id`, `revision` and `content`. S0 returns a
-whole page up to 256 KiB; it does not yet return source-document citations or
-pagination. Imported text cannot grant capabilities or become directory rules.
+Result fields are `api_version`, `page_id`, `revision` and `content`. The original whole-page mode returns up to 256 KiB; M1 adds optional pagination
+and separately granted immutable source-read tools. Imported text cannot grant capabilities or become directory rules.
 
 The runtime owns execution-start events and durable receipts. Tests independently
 read the JSONL file during the next model call and replay it after closing the
@@ -119,14 +118,14 @@ local path. The script writes build artifacts under Ohmu's ignored target tree,
 does not edit Nausicaa, and does not replace Ohmu's committed Git-source lockfile.
 It uses offline Cargo resolution, so fetch normal dependencies first.
 
-## Planned tool and host extensions
+## Tool and host extensions
 
 | Tool | Contract | Stage |
 | --- | --- | --- |
 | ohmu_read | Bounded ID/revision read; later evidence pagination | S0 / M1 |
 | ohmu_search | Lexical candidates with collection/revision/locators | M1 |
 | ohmu_neighbors | Explicit incoming/outgoing links and document children | M1 |
-| ohmu_ingest | Explicit local-write capability; URL fetching additionally declares external effects | M1 |
+| ohmu_ingest | Not registered; explicit CLI import only | Deferred |
 | ohmu_stage | Persist a structured draft; no published page changes | M2 |
 | ohmu_apply | Exact changeset digest, base versions and operation ID; Ask by default | M2 |
 

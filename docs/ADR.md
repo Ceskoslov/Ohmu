@@ -167,3 +167,44 @@ stamps reject stale/cross-store states, including empty search results. Heavy
 work uses a 32 MB single-threaded Tantivy writer and bounded page collection.
 Search has no implicit write/reindex authority. Complete details and limits are
 in [RETRIEVAL](RETRIEVAL.md).
+
+## ADR-008: reuse the harness for bounded, snapshot-pinned workflows
+
+Accepted in M3. Build a query-local Tantivy view from retained M2 page objects
+and immutable source manifests, using the existing tokenizer and field weights.
+This pays setup once per workflow and prevents later live edits/imports from
+changing evidence mid-turn. Memory/text bounds and setup latency are explicit;
+a snapshot is not advertised as a zero-cost query. Use Nausicaa AgentRuntime and
+its pinned native provider. Require host-supplied model-specific request token
+accounting rather than a fictitious universal tokenizer. Compile emits a proposal
+accepted into durable drafts; neither workflow grants apply. Keep independent
+acceptance separate from TurnCompleted and preserve receipt/state uncertainty.
+
+## ADR-009: package native artifacts only behind cross-platform validation
+
+Accepted in M4. Package jobs depend on all Linux/macOS verification jobs, derive
+the actual host triple, and smoke the extracted executable. Bundle exact lockfile,
+build provenance, source and transitive license notices. Actions artifacts are
+reviewable build outputs; public release tags/uploads are separate. Retain fixed
+Git revisions and explicitly check the latest supported harness revision rather
+than floating to it. Historical producer probes test real old data in isolated
+archives without modifying Nausicaa. See [RELEASE](RELEASE.md).
+
+## ADR-010: keep strict content validation, avoid a second full manifest parse
+
+Accepted after the M4 10,000-source baseline measured live warm P95 328.2 ms.
+Every live query still reads, hashes and validates all current pages and source
+manifests before comparing the index generation; there is no cross-query
+metadata-only freshness cache. Hold a shared root/source lock for the entire
+query. Capture descriptor-relative, no-follow file/directory stamps before the
+content scan and after retrieval: names, device, inode, type, size, nanosecond
+mtime and ctime. A difference fails the query. Returned source artifacts/raw
+bytes remain checksum-verified. This replaces only the duplicate final full
+content scan. Atime is deliberately excluded because reads change it.
+
+Tests include same-size edits with restored mtime, inode replacement, additions
+and symlinks. Metadata is a race detector, never content authority or an OS
+compare-and-swap. Uncooperative adversarial writers and filesystem timestamp
+limits remain outside perfect exclusion guarantees. Index format and on-disk
+versions are unchanged. Measure before/after on the same generated corpus;
+retain snapshot construction and model latency as separate costs.

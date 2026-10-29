@@ -1,0 +1,124 @@
+{
+  "cold_definition": "new process, OS cache not flushed; first live query only",
+  "collection": "all",
+  "first_frozen_ms": 1.327851,
+  "first_live_ms": 277.20187000000004,
+  "frozen_build_seconds": 0.958215507,
+  "frozen_ms": {
+    "count": 100,
+    "max": 11.333253999999998,
+    "min": 0.012064,
+    "p50": 3.1020309999999998,
+    "p95": 9.940601000000001
+  },
+  "iterations": 100,
+  "live_ms": {
+    "count": 100,
+    "max": 262.100325,
+    "min": 201.600493,
+    "p50": 208.87978700000002,
+    "p95": 220.925982
+  },
+  "prepare": {
+    "corpus_hash": "sha256:89caca3265e5ba34e98659f1189cd0cb3563865ec4ac69474dcd4e7370ea9d11",
+    "index_logical_bytes": 10335118,
+    "index_seconds": 2.115462892,
+    "ingest_seconds": 421.590010733,
+    "noop_incremental_seconds": 1.086188607,
+    "normalized_bytes": {
+      "count": 10000,
+      "max": 262544.0,
+      "min": 1140.0,
+      "p50": 1182.0,
+      "p95": 16513.0
+    },
+    "rebuild_seconds": 2.085586064,
+    "schema_version": 1,
+    "sections": 23002,
+    "source_bytes": {
+      "count": 10000,
+      "max": 263689.0,
+      "min": 1140.0,
+      "p50": 1335.0,
+      "p95": 16513.0
+    },
+    "sources": 10000,
+    "wiki_logical_bytes": 137078414
+  },
+  "queries": [
+    "group007",
+    "group099",
+    "知识证据",
+    "research",
+    "physical page",
+    "transaction recovery",
+    "Ohmu",
+    "no_such_zqx_marker"
+  ],
+  "schema_version": 1,
+  "snapshot_seconds": 0.166759039,
+  "top_k": 20,
+  "process_cold_ms": {
+    "samples": [
+      {
+        "ms": 294.14909500000005,
+        "query": "group007"
+      },
+      {
+        "ms": 282.596361,
+        "query": "group099"
+      },
+      {
+        "ms": 276.28254400000003,
+        "query": "知识证据"
+      },
+      {
+        "ms": 279.191976,
+        "query": "research"
+      },
+      {
+        "ms": 272.937741,
+        "query": "physical page"
+      },
+      {
+        "ms": 274.234169,
+        "query": "transaction recovery"
+      },
+      {
+        "ms": 270.412685,
+        "query": "Ohmu"
+      },
+      {
+        "ms": 287.64288300000004,
+        "query": "no_such_zqx_marker"
+      }
+    ],
+    "p50": 276.28254400000003,
+    "p95": 294.14909500000005
+  },
+  "hardware": {
+    "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "logical_cpus": 12,
+    "machine": "x86_64",
+    "physical_storage": "not identified by virtual guest",
+    "cpu_model": "AMD Ryzen 5 7500F 6-Core Processor",
+    "mem_total": "MemTotal:       16170188 kB",
+    "filesystem": "Filesystem     Type  1K-blocks     Used Available Use% Mounted on\n/dev/sdd       ext4 1055762868 82153588 919905808   9% /\n"
+  },
+  "peak_child_rss": {
+    "value": 119296,
+    "unit": "KiB",
+    "scope": "maximum across fixture child processes; excludes compiler"
+  },
+  "revision": "aa05e1b21c74ed87b15065f764eccb0b0497568a",
+  "dirty": true,
+  "measured_at": "2026-10-29T12:48:51.667745+00:00",
+  "model_latency": null,
+  "prepare_peak_rss": {
+    "value": 146120,
+    "unit": "KiB",
+    "source": "/usr/bin/time -v around scale prepare"
+  },
+  "first_snapshot_retention_seconds": 7.234808844,
+  "source_provenance": "Measured working tree based on aa05e1b; generator and ADR-010 implementation committed with this report. dirty=true records this explicitly."
+}

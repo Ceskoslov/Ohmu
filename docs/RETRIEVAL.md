@@ -114,3 +114,13 @@ remain explicit host decisions. Long synchronous engine calls belong off an asyn
 host's I/O loop; cancellation checks surround tool work but do not interrupt every
 filesystem/index operation. Existing receipt durability and exact-action rules
 remain owned by Nausicaa. See [NAUSICAA](NAUSICAA.md).
+
+## M4 live-query race detection
+
+A live query holds a cooperative shared root/source lock through retrieval. It
+still reads and validates all authoritative pages/manifests and compares the
+index content generation on every request. Descriptor-relative no-follow
+identity/size/nanosecond mtime+ctime stamps before/after the query replace the
+duplicate final full parse; changes fail the query. Returned evidence is still
+checksum-verified. This is not a cross-query cache or perfect exclusion against
+uncooperative editor races. See ADR-010 and [scale measurements](SCALE.md).

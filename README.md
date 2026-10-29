@@ -8,15 +8,15 @@ Ohmu integrates with [Nausicaa](https://github.com/Ceskoslov/Nausicaa) across se
 
 ## Current status
 
-**M1–M3 are implemented: vectorless retrieval, reviewed publication/recovery and snapshot-pinned cited model workflows.** M4 is under measured validation.
+**M1–M4 implementation is complete:** vectorless retrieval, reviewed publication/recovery, snapshot-pinned model workflows, scale tooling and native packaging. Live-model quality and the exact reference-hardware gate remain unmeasured.
 
-| Implemented | Later stages |
+| Available | Scope |
 | --- | --- |
-| Local Markdown/HTML/PDF and public HTTP(S) imports | Live model quality evaluation |
-| Immutable sources, page/byte evidence and catalog rebuild | Scale evaluation |
-| Page frontmatter, aliases, backlinks and health checks | Scale evaluation |
-| Jieba + Tantivy BM25, incremental indexing and stale checks | Packaging and compatibility matrix |
-| Nausicaa page, search, neighbor and source-read tools | OCR and multi-user services are outside v1 |
+| Local Markdown/HTML/PDF and public HTTP(S) imports | Immutable source revisions and page/byte evidence |
+| Jieba + Tantivy BM25 and explicit page/document links | No embeddings or vector fallback |
+| Drafts, reviewed apply, recovery, snapshots and backup/restore | Model generation never automatically publishes |
+| Nausicaa-backed ask/compile and durable receipts | Required provider budgets and trusted token accounting |
+| 10,000-source benchmark, historical compatibility and CI packaging | Live quality, OCR and multi-user services are outside these checks |
 
 ## Quick start
 
@@ -77,7 +77,7 @@ cargo clippy --workspace --all-targets --all-features --locked --offline -- -D w
 cargo test --workspace --all-features --locked --offline
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked --offline
 python3 scripts/check_docs.py
-python3 scripts/check_local_host.py --nausicaa ../Nausicaa
+python3 scripts/check_local_host.py --nausicaa ../Nausicaa --with-provider
 ```
 
 Run `cargo fetch --locked` first on a fresh checkout. The local override check creates a temporary consumer and changes neither Nausicaa nor this repository's lockfile.
@@ -97,3 +97,8 @@ publish. Live requests require explicit provider/model, context/output budgets,
 a trusted model-specific token counter and a fresh event journal. See
 [workflows](docs/WORKFLOWS.md) for configuration and limits. Scripted fixtures do
 not establish live-model quality.
+
+The disclosed 10,000-source WSL benchmark measured strict live warm top20 P95
+**220.93 ms**, and snapshot-query P95 **9.94 ms**, excluding separately reported
+setup. See [scale evidence](docs/SCALE.md) and [packaging/compatibility](docs/RELEASE.md).
+Linux/macOS artifact jobs run only after both platform checks pass.

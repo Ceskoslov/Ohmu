@@ -164,7 +164,14 @@ latency and abstention separately. Scripted fixtures establish integration only.
 
 ## M4 — scale, packaging and compatibility
 
-**Status: planned. Depends on M3.**
+**Status: implemented and locally verified. Depends on M3.**
+
+The reproducible 10,000-source run, measured live-query optimization, historical
+producer compatibility and native packaging are implemented. See [SCALE](SCALE.md)
+and [RELEASE](RELEASE.md). The disclosed 6-core WSL host passes the numeric warm
+latency target; the exact 8-core reference host, storage-cold runs and live model
+quality remain unmeasured. Hosted artifacts are gated on both platform CI jobs;
+consult their published results rather than inferring success from configuration.
 
 Create a reproducible 10,000-source mixed-language corpus manifest with document
 size distribution and a published hardware profile. Measure ingest/index/rebuild
@@ -187,7 +194,7 @@ Default tests require no model credentials, network service or process sandbox.
 Network parser fixtures use local test servers, with explicit test-only allowance
 for loopback URLs. Live evaluation is opt-in and cannot gate ordinary development.
 
-Until M2 recovery passes, publish is not exposed as a working command. Introduce
+M2 recovery has passed and explicit publication is exposed. Introduce
 format migrations explicitly, retain backups, and fail closed on unknown versions.
 Record operation IDs, content revisions, parser/tokenizer versions, durations and
 model usage in local diagnostics; do not log credentials. Keep source content in

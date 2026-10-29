@@ -1,0 +1,117 @@
+{
+  "cold_definition": "new process, OS cache not flushed; first live query only",
+  "collection": "all",
+  "first_frozen_ms": 1.294298,
+  "first_live_ms": 413.100322,
+  "frozen_build_seconds": 0.936844021,
+  "frozen_ms": {
+    "count": 100,
+    "max": 10.137854,
+    "min": 0.011871,
+    "p50": 2.892785,
+    "p95": 9.411909
+  },
+  "iterations": 100,
+  "live_ms": {
+    "count": 100,
+    "max": 344.444448,
+    "min": 277.80335499999995,
+    "p50": 301.80485699999997,
+    "p95": 328.24475600000005
+  },
+  "prepare": {
+    "corpus_hash": "sha256:89caca3265e5ba34e98659f1189cd0cb3563865ec4ac69474dcd4e7370ea9d11",
+    "index_logical_bytes": 10335118,
+    "index_seconds": 2.115462892,
+    "ingest_seconds": 421.590010733,
+    "noop_incremental_seconds": 1.086188607,
+    "normalized_bytes": {
+      "count": 10000,
+      "max": 262544.0,
+      "min": 1140.0,
+      "p50": 1182.0,
+      "p95": 16513.0
+    },
+    "rebuild_seconds": 2.085586064,
+    "schema_version": 1,
+    "sections": 23002,
+    "source_bytes": {
+      "count": 10000,
+      "max": 263689.0,
+      "min": 1140.0,
+      "p50": 1335.0,
+      "p95": 16513.0
+    },
+    "sources": 10000,
+    "wiki_logical_bytes": 137078414
+  },
+  "queries": [
+    "group007",
+    "group099",
+    "知识证据",
+    "research",
+    "physical page",
+    "transaction recovery",
+    "Ohmu",
+    "no_such_zqx_marker"
+  ],
+  "schema_version": 1,
+  "snapshot_seconds": 7.234808844,
+  "top_k": 20,
+  "process_cold_ms": {
+    "samples": [
+      {
+        "ms": 392.167792,
+        "query": "group007"
+      },
+      {
+        "ms": 385.570427,
+        "query": "group099"
+      },
+      {
+        "ms": 384.65177,
+        "query": "知识证据"
+      },
+      {
+        "ms": 394.050877,
+        "query": "research"
+      },
+      {
+        "ms": 378.928851,
+        "query": "physical page"
+      },
+      {
+        "ms": 384.79983400000003,
+        "query": "transaction recovery"
+      },
+      {
+        "ms": 386.59805600000004,
+        "query": "Ohmu"
+      },
+      {
+        "ms": 379.479537,
+        "query": "no_such_zqx_marker"
+      }
+    ],
+    "p50": 384.79983400000003,
+    "p95": 394.050877
+  },
+  "hardware": {
+    "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "logical_cpus": 12,
+    "machine": "x86_64",
+    "physical_storage": "not identified by virtual guest",
+    "cpu_model": "AMD Ryzen 5 7500F 6-Core Processor",
+    "mem_total": "MemTotal:       16170188 kB",
+    "filesystem": "Filesystem     Type  1K-blocks     Used Available Use% Mounted on\n/dev/sdd       ext4 1055762868 78246932 923812464   8% /\n"
+  },
+  "peak_child_rss": {
+    "value": 120864,
+    "unit": "KiB",
+    "scope": "maximum across fixture child processes; excludes compiler"
+  },
+  "revision": "aa05e1b21c74ed87b15065f764eccb0b0497568a",
+  "dirty": true,
+  "measured_at": "2026-10-29T12:44:00.910349+00:00",
+  "model_latency": null
+}

@@ -191,3 +191,29 @@ CLI fixture with required counter, durable usage/acceptance, injected apply deni
 and cited contradiction handling. Formatting, strict Clippy, rustdoc, docs and
 local-host compatibility passed. M2 hosted CI also passed on Ubuntu 24.04 and
 macOS 15: [run 40873189271](https://github.com/Ceskoslov/Ohmu/actions/runs/40873189271).
+
+## M4 scale, compatibility and packaging
+
+The 10,000-source corpus and all aggregate measurements are recorded in
+[SCALE](SCALE.md) and [results](results/README.md). Warm strict live P95 improved
+from 328.24 ms to 220.93 ms without dropping each-query content generation/hash
+validation. Frozen-query P95 was 9.94 ms, with setup measured separately. The
+host was 6-core/12-thread WSL, not the exact 8-core reference machine. Physical
+storage topology, storage-cold queries and live model quality remain unmeasured.
+
+All four archived historical producers passed current read/reindex/search; M2
+also passed backup/draft/snapshot round trips. The local host probe passed with
+both core and native provider unified, and Nausicaa remained clean at its pinned
+revision (also the explicitly checked remote HEAD on 2026-10-29). A local native
+archive included 367 locked dependency notices and passed extraction/version/
+init/read smoke checks; development provenance correctly recorded dirty=true.
+CI packages clean native builds only after both Ubuntu/macOS verification jobs.
+
+The final local suite contains 67 passing tests, including same-size/restored-
+mtime freshness races, in-flight cancellation of a legacy adapter and refusal to reuse an acceptance destination before
+model calls or staging. Formatting, strict Clippy, rustdoc, documentation links
+and extended local-host compatibility passed. M3 hosted validation passed both
+platforms: [run 40874147443](https://github.com/Ceskoslov/Ohmu/actions/runs/40874147443).
+Current hosted packaging results are published in the
+[CI workflow](https://github.com/Ceskoslov/Ohmu/actions/workflows/ci.yml); do not
+interpret the workflow configuration alone as a completed run.

@@ -266,6 +266,11 @@ pub async fn run_workflow(
         .write(true)
         .create_new(true)
         .open(event_path)?;
+    let acceptance_path = event_path.with_extension("acceptance.json");
+    let mut acceptance_file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&acceptance_path)?;
     let events = Arc::new(JsonlEventStore::open(event_path)?);
     let navigation = Arc::new(Mutex::new(Navigation::default()));
     let mut tools = ToolRegistry::new();
@@ -393,6 +398,9 @@ pub async fn run_workflow(
                         view.verify_citation(c).map_err(|e| e.to_string())?;
                     }
                 }
+                if cancellation.is_cancelled() || Instant::now() >= expires {
+                    return Err("query deadline/cancellation before staging".into());
+                }
                 report.draft = Some(wiki.stage(proposal).map_err(|e| e.to_string())?);
                 report.partial = false;
             }
@@ -405,14 +413,16 @@ pub async fn run_workflow(
     }
     report.elapsed_ms = started.elapsed().as_millis();
     // Independent acceptance is durable and separate from TurnCompleted.
-    let acceptance_path = event_path.with_extension("acceptance.json");
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(acceptance_path)?;
     use std::io::Write;
-    file.write_all(&serde_json::to_vec_pretty(&report)?)?;
-    file.sync_all()?;
+    acceptance_file.write_all(&serde_json::to_vec_pretty(&report)?)?;
+    acceptance_file.sync_all()?;
+    std::fs::File::open(
+        event_path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new(".")),
+    )?
+    .sync_all()?;
     Ok(report)
 }
 

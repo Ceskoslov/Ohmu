@@ -17,6 +17,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          fetch-depth: 0
       - run: rustup toolchain install 1.98.0 --profile minimal --component rustfmt --component clippy
       - run: cargo fetch --locked
       - run: cargo fmt --all -- --check
@@ -34,6 +35,34 @@ jobs:
         run: |
           git clone --no-checkout https://github.com/Ceskoslov/Nausicaa.git "$RUNNER_TEMP/Nausicaa"
           git -C "$RUNNER_TEMP/Nausicaa" checkout --detach a2ab5b365cfb29bedd48d29b69951510ae5d1ef5
-          python3 scripts/check_local_host.py --nausicaa "$RUNNER_TEMP/Nausicaa"
+          python3 scripts/check_local_host.py --nausicaa "$RUNNER_TEMP/Nausicaa" --with-provider
+      - name: Smoke deterministic benchmark (not a performance gate)
+        run: |
+          cargo build -p ohmu-engine --example scale --locked --offline
+          python3 scripts/benchmark.py target/scale-smoke --binary target/debug/examples/scale --sources 10 --iterations 8
+      - name: Verify historical on-disk producers
+        run: python3 scripts/check_legacy.py --binary target/debug/ohmu
       - run: git diff --exit-code
       - run: git diff --check
+
+  package:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.98.0 --profile minimal
+      - run: cargo fetch --locked
+      - run: cargo build -p ohmu-cli --release --locked --offline
+      - run: python3 scripts/package.py --binary target/release/ohmu
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ohmu-${{ matrix.os }}
+          path: target/dist/*
+          if-no-files-found: error

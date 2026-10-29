@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "compatibility": [
+    {
+      "producer": "d53bd10212f4703c687e609702875d1fb5d9a51a",
+      "read_reindex_search": "passed",
+      "source_revisions": 0,
+      "durable_state_roundtrip": "not applicable"
+    },
+    {
+      "producer": "eaf7473186d351fda832d04810980d37d42b9729",
+      "read_reindex_search": "passed",
+      "source_revisions": 1,
+      "durable_state_roundtrip": "not applicable"
+    },
+    {
+      "producer": "eb17d54d76c4fe1007fa22b42d789498b96eaabc",
+      "read_reindex_search": "passed",
+      "source_revisions": 1,
+      "durable_state_roundtrip": "not applicable"
+    },
+    {
+      "producer": "3a53b2848ee38d61d2d20b4907a45b7b68998a0c",
+      "read_reindex_search": "passed",
+      "source_revisions": 1,
+      "durable_state_roundtrip": "passed"
+    }
+  ]
+}

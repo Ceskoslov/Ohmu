@@ -8,15 +8,15 @@ Ohmu 与 [Nausicaa](https://github.com/Ceskoslov/Nausicaa) 分仓协作：Ohmu �
 
 ## 当前状态
 
-**M1–M3 已实现：无向量检索、草稿发布与恢复、固定快照的引用问答及模型草稿生成。** M4 正在实测验证。
+**M1–M4 的实现已完成：** 无向量检索、草稿发布与恢复、固定快照模型工作流、规模评测工具及原生打包。真实模型质量和指定参考硬件的验收仍未实测。
 
-| 已实现 | 后续阶段 |
+| 可用功能 | 范围 |
 | --- | --- |
-| 本地 Markdown/HTML/PDF 与公共 HTTP(S) URL 导入 | 真实模型质量评估 |
-| 不可变来源版本、页码/字节定位、目录重建 | 规模性能评估 |
-| 页面元数据、别名、双向链接和健康检查 | 发布兼容性验证 |
-| 中文 Jieba + Tantivy BM25、增量索引及失效检测 | 发布打包与兼容性矩阵 |
-| Nausicaa 页面读取、搜索、关系与来源读取工具 | OCR 和多用户服务不在 v1 范围 |
+| 本地 Markdown/HTML/PDF 与公共 HTTP(S) URL 导入 | 不可变来源版本和页码/字节证据 |
+| 中文 Jieba + Tantivy BM25、页面链接与文档树导航 | 完全无 embedding 或向量后备 |
+| 草稿、审阅发布、中断恢复、快照、备份及还原 | 模型生成不会自动发布 |
+| Nausicaa 驱动的 ask/compile 与持久回执 | 要求 provider 预算及可信 token 计数 |
+| 10,000 份来源基准、历史兼容探针与 CI 打包 | 真实质量、OCR 和多用户服务不属于这些检查 |
 
 ## 快速开始
 
@@ -77,14 +77,14 @@ cargo clippy --workspace --all-targets --all-features --locked --offline -- -D w
 cargo test --workspace --all-features --locked --offline
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked --offline
 python3 scripts/check_docs.py
-python3 scripts/check_local_host.py --nausicaa ../Nausicaa
+python3 scripts/check_local_host.py --nausicaa ../Nausicaa --with-provider
 ```
 
 首次运行前先执行 `cargo fetch --locked`。本地覆盖检查只创建临时消费应用，不修改 Nausicaa 或本仓库锁文件。
 
 代码按 MIT 或 Apache-2.0 双许可证发布，使用者可任选其一。
 
-M1–M2 已实现：无向量检索、可审阅草稿、显式发布、中断恢复与备份。
+草稿、发布、恢复和备份命令已实现。
 使用 `stage proposal.json`、`drafts`、`draft <digest>`、`diff <digest>` 审阅，
 再用 `apply <digest>` 显式发布。中断后使用 `operations` 和
 `recover <operation> --strategy finish|rollback`。`snapshot`、`snapshot-read`、
@@ -95,3 +95,8 @@ M1–M2 已实现：无向量检索、可审阅草稿、显式发布、中断恢
 二者使用固定快照，均不会自动发布。实时请求要求明确的 provider/model、
 上下文及输出预算、可信的模型专用 token counter 和新的事件日志路径。
 配置及限制见[工作流说明](docs/WORKFLOWS.md)。脚本测试不代表真实模型质量。
+
+已披露的 10,000 份来源 WSL 基准中，严格 live 检索 warm top20 P95 为
+**220.93 ms**；固定快照内检索 P95 为 **9.94 ms**，另行报告准备成本。
+详见[规模实测](docs/SCALE.md)及[打包与兼容](docs/RELEASE.md)。
+Linux/macOS 构建产物任务须在两个平台的检查均通过后执行。

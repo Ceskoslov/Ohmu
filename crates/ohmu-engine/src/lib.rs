@@ -18,6 +18,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
+mod freshness;
 mod sources;
 pub use sources::IngestReport;
 mod pages;
@@ -279,7 +280,7 @@ impl Wiki {
                 "backup_restore".into(),
                 "cited_workflows".into(),
             ],
-            planned: vec!["scale_release_validation".into()],
+            planned: vec!["live_model_quality_evaluation".into()],
         })
     }
 }

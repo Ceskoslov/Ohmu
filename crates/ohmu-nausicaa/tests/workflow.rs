@@ -289,3 +289,62 @@ async fn injected_apply_is_denied_and_contradictions_require_real_citations() {
     );
     assert!(wiki.drafts().unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn an_existing_acceptance_destination_prevents_model_calls_and_staging() {
+    let temp = tempdir().unwrap();
+    let wiki = Arc::new(Wiki::init(temp.path().join("wiki"), "test").unwrap());
+    let path = temp.path().join("query.jsonl");
+    let acceptance = path.with_extension("acceptance.json");
+    std::fs::write(&acceptance, "retain prior report").unwrap();
+    let result = run_workflow(
+        wiki.clone(),
+        script(vec![]),
+        WorkflowKind::Compile,
+        "Compile",
+        &path,
+        WorkflowBudget::default(),
+        CancellationToken::new(),
+    )
+    .await;
+    assert!(result.is_err());
+    assert!(wiki.drafts().unwrap().is_empty());
+    assert_eq!(
+        std::fs::read_to_string(acceptance).unwrap(),
+        "retain prior report"
+    );
+    assert!(std::fs::read(path).unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn cancellation_interrupts_an_inflight_legacy_model_and_persists_a_partial_report() {
+    let temp = tempdir().unwrap();
+    let wiki = Arc::new(Wiki::init(temp.path().join("wiki"), "test").unwrap());
+    let path = temp.path().join("cancel-live.jsonl");
+    let token = CancellationToken::new();
+    let trigger = token.clone();
+    let (result, ()) = tokio::join!(
+        run_workflow(
+            wiki,
+            Arc::new(Slow),
+            WorkflowKind::Ask,
+            "Q",
+            &path,
+            WorkflowBudget::default(),
+            token
+        ),
+        async move {
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            trigger.cancel();
+        }
+    );
+    let report = result.unwrap();
+    assert!(!report.accepted);
+    assert!(report.partial);
+    assert!(report.reason.unwrap().contains("cancel"));
+    assert!(
+        std::fs::read_to_string(path)
+            .unwrap()
+            .contains("turn_cancelled")
+    );
+}

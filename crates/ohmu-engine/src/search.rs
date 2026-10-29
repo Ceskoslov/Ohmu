@@ -369,7 +369,10 @@ impl Wiki {
                 "query must be nonempty and <=4096 bytes; limit must be 1..=100",
             ));
         }
-        let pages = self.page_documents()?;
+        let _read = self.live_read_guard()?;
+        self.require_recovered()?;
+        let before = self.live_stamp()?;
+        let pages = self.page_documents_unlocked()?;
         let records = self.source_records()?;
         let fingerprint = generation(&entities(&pages, &records))?;
         let database = self.catalog(false).map_err(error)?;
@@ -437,7 +440,7 @@ impl Wiki {
             hit.score = score;
             hits.push(hit);
         }
-        if fingerprint != generation(&entities(&self.page_documents()?, &self.source_records()?))? {
+        if before != self.live_stamp()? {
             return Err(EngineError::Conflict);
         }
         Ok(SearchResult {
