@@ -6,10 +6,10 @@ GitHub Release publication implied by a successful source commit.
 
 ## Artifact gate
 
-The `package` CI job depends on both Linux and macOS `verify` jobs. It then builds
-a native release executable on each runner, packages it with `scripts/package.py`,
-extracts the archive and runs version/init/read smoke checks. Artifact names
-include the actual rustc host triple, not an assumed macOS CPU architecture.
+The Ubuntu 24.04 `package` job runs after the Ubuntu `verify` job passes. It
+builds a native release executable, packages it with `scripts/package.py`,
+extracts the archive and runs version/init/read smoke checks. Archive names
+include the actual rustc host triple.
 Actions artifacts include tar.gz plus SHA-256 files. Creating public release tags
 or uploading a GitHub Release is a separate action.
 

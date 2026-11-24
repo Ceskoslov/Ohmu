@@ -170,8 +170,8 @@ The reproducible 10,000-source run, measured live-query optimization, historical
 producer compatibility and native packaging are implemented. See [SCALE](SCALE.md)
 and [RELEASE](RELEASE.md). The disclosed 6-core WSL host passes the numeric warm
 latency target; the exact 8-core reference host, storage-cold runs and live model
-quality remain unmeasured. Hosted artifacts are gated on both platform CI jobs;
-consult their published results rather than inferring success from configuration.
+quality remain unmeasured. Hosted Linux artifacts are gated on the Ubuntu verification job. The
+published workflow records the result.
 
 Create a reproducible 10,000-source mixed-language corpus manifest with document
 size distribution and a published hardware profile. Measure ingest/index/rebuild
@@ -184,8 +184,9 @@ a measured optimization or an explicit revised ADR before release.
 Exercise backup/restore and migration from every released on-disk version. Verify
 Nausicaa's pinned revision and the latest explicitly supported revision in a
 consumer compatibility matrix; upgrades are intentional PRs, not floating branches.
-Package installable CLI artifacts only after Linux and macOS CI execute. Windows
-native support, team services and an MCP server remain separate decisions.
+Package installable Linux CLI artifacts after the Ubuntu verification job
+passes. Native Windows support, team services and an MCP server remain separate
+decisions.
 
 ## Acceptance, rollout and maintenance
 

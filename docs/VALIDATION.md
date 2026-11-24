@@ -73,9 +73,8 @@ requires a new journal and refuses to reuse an existing file.
 
 ## Evidence limits
 
-macOS is configured in CI but was not run locally. Hosted CI results are not asserted by these local checks; the repository has
-since been synchronized to its user-created GitHub remote. Native Windows is unsupported; Windows users
-should use WSL. There is no live-model quality result, PDF/parser benchmark,
+The S0 macOS job was configured for hosted CI. These local checks ran on
+Linux/WSL. Windows users should use WSL. There is no live-model quality result, PDF/parser benchmark,
 10,000-source performance result, multi-page transaction or recovery guarantee
 at S0. Those require the fixtures and stage exits in [PLAN](PLAN.md).
 
@@ -207,7 +206,7 @@ both core and native provider unified, and Nausicaa remained clean at its pinned
 revision (also the explicitly checked remote HEAD on 2026-10-29). A local native
 archive included 367 locked dependency notices and passed extraction/version/
 init/read smoke checks; development provenance correctly recorded dirty=true.
-CI packages clean native builds only after both Ubuntu/macOS verification jobs.
+Current CI packages Linux builds after the Ubuntu verification job passes.
 
 The final local suite contains 67 passing tests, including same-size/restored-
 mtime freshness races, in-flight cancellation of a legacy adapter and refusal to reuse an acceptance destination before

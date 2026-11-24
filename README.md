@@ -20,7 +20,7 @@ Ohmu integrates with [Nausicaa](https://github.com/Ceskoslov/Nausicaa) across se
 
 ## Quick start
 
-Requires Rust 1.98.0. Linux/WSL is supported locally; CI also configures macOS. The first build needs network access for dependencies and the pinned Nausicaa commit.
+Requires Rust 1.98.0. Linux/WSL is supported locally. CI runs on Ubuntu 24.04. The first build needs network access for dependencies and the pinned Nausicaa commit.
 
 ```sh
 cargo run -p ohmu-cli -- init /tmp/ohmu-demo --name "研究 Wiki"
@@ -101,4 +101,4 @@ not establish live-model quality.
 The disclosed 10,000-source WSL benchmark measured strict live warm top20 P95
 **220.93 ms**, and snapshot-query P95 **9.94 ms**, excluding separately reported
 setup. See [scale evidence](docs/SCALE.md) and [packaging/compatibility](docs/RELEASE.md).
-Linux/macOS artifact jobs run only after both platform checks pass.
+CI packages the Linux artifact after the Ubuntu verification job passes.

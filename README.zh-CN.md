@@ -20,7 +20,7 @@ Ohmu 与 [Nausicaa](https://github.com/Ceskoslov/Nausicaa) 分仓协作：Ohmu �
 
 ## 快速开始
 
-需要 Rust 1.98.0；当前支持 Linux/WSL，CI 另配置 macOS。首次构建需要联网获取依赖与固定提交的 Nausicaa。
+需要 Rust 1.98.0。本地支持 Linux/WSL，CI 在 Ubuntu 24.04 上运行。首次构建需要联网获取依赖与固定提交的 Nausicaa。
 
 ```sh
 cargo run -p ohmu-cli -- init /tmp/ohmu-demo --name "研究 Wiki"
@@ -99,4 +99,4 @@ python3 scripts/check_local_host.py --nausicaa ../Nausicaa --with-provider
 已披露的 10,000 份来源 WSL 基准中，严格 live 检索 warm top20 P95 为
 **220.93 ms**；固定快照内检索 P95 为 **9.94 ms**，另行报告准备成本。
 详见[规模实测](docs/SCALE.md)及[打包与兼容](docs/RELEASE.md)。
-Linux/macOS 构建产物任务须在两个平台的检查均通过后执行。
+Ubuntu 验证通过后，CI 才打包 Linux 构建产物。

@@ -135,9 +135,9 @@ Neither a missing receipt nor Git history justifies replaying uncertain writes.
 
 ## ADR-008 — Bounded runtime, portable source and honest evidence (S0 onward)
 
-Pin Rust 1.98.0 for Ohmu; leave Nausicaa's own MSRV untouched. S0 supports Unix,
-with Linux/WSL local validation and macOS CI configuration. Native Windows is not
-supported yet. Use rustix safe descriptor APIs; forbid unsafe code in Ohmu crates.
+Pin Rust 1.98.0 for Ohmu. S0 targeted Unix with Linux/WSL local validation
+and initially included macOS in CI. CI now runs on Ubuntu. Native Windows is
+unsupported. Use rustix safe descriptor APIs; forbid unsafe code in Ohmu crates.
 Directory checks are not process containment.
 
 Commit Cargo.lock and fetch it before offline checks. Do not add unused planned
@@ -180,10 +180,11 @@ accounting rather than a fictitious universal tokenizer. Compile emits a proposa
 accepted into durable drafts; neither workflow grants apply. Keep independent
 acceptance separate from TurnCompleted and preserve receipt/state uncertainty.
 
-## ADR-009: package native artifacts only behind cross-platform validation
+## ADR-009: package native artifacts after verification
 
-Accepted in M4. Package jobs depend on all Linux/macOS verification jobs, derive
-the actual host triple, and smoke the extracted executable. Bundle exact lockfile,
+Accepted in M4 with Linux and macOS verification. CI now packages Linux
+artifacts after Ubuntu verification. Packaging derives the actual host triple
+and smoke-tests the extracted executable. Bundle exact lockfile,
 build provenance, source and transitive license notices. Actions artifacts are
 reviewable build outputs; public release tags/uploads are separate. Retain fixed
 Git revisions and explicitly check the latest supported harness revision rather
