@@ -63,6 +63,7 @@ async fn stage_preparation_is_pure_and_apply_executes_exact_scoped_bytes() {
 
 struct Publisher {
     id: String,
+    expected_status: ReceiptStatus,
 }
 impl ModelAdapter for Publisher {
     fn complete<'a>(
@@ -71,8 +72,8 @@ impl ModelAdapter for Publisher {
     ) -> BoxFuture<'a, Result<ModelResponse, ModelError>> {
         Box::pin(async move {
             if let Some(TranscriptMessage::Tool { receipt }) = request.context.messages.last() {
-                assert_eq!(receipt.status, ReceiptStatus::Denied);
-                return Ok(ModelResponse::text("approval required"));
+                assert_eq!(receipt.status, self.expected_status);
+                return Ok(ModelResponse::text("publication checked"));
             }
             Ok(ModelResponse::tool_calls(vec![ToolCall::new(
                 "ohmu_apply",
@@ -92,6 +93,7 @@ async fn publication_requires_exact_approval_and_cannot_follow_from_registration
     let runtime = AgentRuntime::new(
         Arc::new(Publisher {
             id: draft.id.to_string(),
+            expected_status: ReceiptStatus::Denied,
         }),
         Arc::new(MemoryEventStore::new()),
         Arc::new(LayeredContextCompiler::new()),
@@ -106,9 +108,62 @@ async fn publication_requires_exact_approval_and_cannot_follow_from_registration
             .await
             .unwrap()
             .content,
-        "approval required"
+        "publication checked"
     );
     assert!(!root.join("pages/note.md").exists());
+}
+
+struct ExactApproval(CanonicalAction);
+
+impl ApprovalProvider for ExactApproval {
+    fn request<'a>(
+        &'a self,
+        request: ApprovalRequest,
+    ) -> BoxFuture<'a, Result<ApprovalDecision, ApprovalError>> {
+        Box::pin(async move {
+            assert_eq!(request.action, self.0);
+            Ok(ApprovalDecision::Approved {
+                action: self.0.clone(),
+            })
+        })
+    }
+}
+
+#[tokio::test]
+async fn exact_runtime_approval_publishes_one_reconcilable_operation() {
+    let temp = tempdir().unwrap();
+    let root = temp.path().join("wiki");
+    let wiki = Arc::new(Wiki::init(&root, "test").unwrap());
+    let draft = wiki.stage(proposal()).unwrap();
+    let operation = wiki.prepare_apply(&draft.id).unwrap().operation_id;
+    let tool = MaintenanceTool::new(wiki.clone(), MaintenanceToolKind::Apply);
+    let call = ToolCall::new("ohmu_apply", json!({"draft_id":draft.id}));
+    let expected = tool.prepare(&call, &context()).unwrap().action;
+    let mut tools = ToolRegistry::new();
+    register_maintenance_tools(&mut tools, wiki.clone()).unwrap();
+    let runtime = AgentRuntime::new(
+        Arc::new(Publisher {
+            id: draft.id.to_string(),
+            expected_status: ReceiptStatus::Succeeded,
+        }),
+        Arc::new(MemoryEventStore::new()),
+        Arc::new(LayeredContextCompiler::new()),
+        tools,
+        Arc::new(maintenance_policy()),
+    )
+    .with_approval_provider(Arc::new(ExactApproval(expected)))
+    .with_executor(Arc::new(DirectExecutor));
+    let thread = runtime.start_thread().unwrap();
+    runtime
+        .run_turn(&thread, "publish the draft")
+        .await
+        .unwrap();
+    assert_eq!(wiki.operations().unwrap().len(), 1);
+    assert_eq!(wiki.operation(&operation).unwrap()["state"], "committed");
+    assert_eq!(
+        fs::read_to_string(root.join("pages/note.md")).unwrap(),
+        proposal().pages[0].content
+    );
 }
 
 #[tokio::test]

@@ -43,6 +43,8 @@ git diff --check
 
 The local-host script expects a Nausicaa checkout; adjust its argument if it is
 not a sibling. It does not edit either source tree or the Ohmu lockfile.
+For candidate changes, run the [patched workspace test mode](NAUSICAA.md#candidate-compatibility)
+against the exact Nausicaa revision you want to evaluate.
 
 For an interactive smoke run, use fresh paths:
 

@@ -1,0 +1,54 @@
+name: Nausicaa candidate compatibility
+
+on:
+  push:
+    paths:
+      - .github/workflows/nausicaa-candidate.yml
+      - scripts/check_local_host.py
+  workflow_dispatch:
+    inputs:
+      nausicaa_sha:
+        description: Full commit SHA from Ceskoslov/Nausicaa
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      NAUSICAA_SHA: ${{ inputs.nausicaa_sha || '646fa3970ee4cb17b5815aea1fa85b78b9a5acc5' }}
+    steps:
+      - name: Validate candidate ref
+        run: |
+          if [[ ! "$NAUSICAA_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Supply a full lowercase Nausicaa commit SHA."
+            exit 1
+          fi
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: Ceskoslov/Nausicaa
+          ref: ${{ env.NAUSICAA_SHA }}
+          path: nausicaa-candidate
+          persist-credentials: false
+      - name: Prepare dependencies
+        run: |
+          rustup toolchain install 1.98.0 --profile minimal
+          cargo fetch --locked
+          cargo fetch --locked --manifest-path nausicaa-candidate/Cargo.toml
+      - name: Verify candidate dependency graph and workflows
+        run: |
+          test "$(git -C nausicaa-candidate rev-parse HEAD)" = "$NAUSICAA_SHA"
+          {
+            printf 'Ohmu `%s`\n\n' "$(git rev-parse HEAD)"
+            printf 'Nausicaa `%s`\n\n' "$NAUSICAA_SHA"
+            printf 'Toolchain `%s`\n' "$(rustc --version)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/check_local_host.py --nausicaa nausicaa-candidate --test-workspace
+          git diff --exit-code

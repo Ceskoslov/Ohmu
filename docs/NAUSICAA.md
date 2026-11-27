@@ -118,6 +118,27 @@ local path. The script writes build artifacts under Ohmu's ignored target tree,
 does not edit Nausicaa, and does not replace Ohmu's committed Git-source lockfile.
 It uses offline Cargo resolution, so fetch normal dependencies first.
 
+## Candidate compatibility
+
+Run [Nausicaa candidate compatibility](../.github/workflows/nausicaa-candidate.yml)
+with the full commit SHA of a candidate from `Ceskoslov/Nausicaa`. The job
+records both revisions and the Rust toolchain in its summary. Pushes that
+change the probe or its workflow run the same check against the workflow's
+fixed smoke revision.
+
+With both repositories checked out and their dependencies cached, run:
+
+```sh
+python3 scripts/check_local_host.py --nausicaa ../Nausicaa --test-workspace
+```
+
+This mode patches the core and native provider in a temporary copy of the Ohmu
+workspace, then updates those packages in the temporary lockfile. It checks that
+Cargo resolves exactly one of each package from the candidate. The workspace
+tests exercise the native provider over loopback, cite immutable evidence,
+project tool permissions, persist receipts, and test publication approval and
+operation recovery. The regular CI job still tests Ohmu's pinned Git packages.
+
 ## Tool and host extensions
 
 | Tool | Contract | Stage |
